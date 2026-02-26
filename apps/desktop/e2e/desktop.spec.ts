@@ -1,28 +1,30 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("FerrumNote desktop flows", () => {
-  test("open, edit and save flow", async ({ page }) => {
+test.describe("FerrumNote web mode", () => {
+  test("shows desktop-only banner and disables desktop actions", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByPlaceholder("输入 .md 文件路径，例如 /home/user/notes/today.md").fill("/tmp/e2e.md");
-    await page.getByRole("button", { name: "打开" }).click();
+    await expect(
+      page.getByText("Desktop-only features are disabled in browser mode", {
+        exact: false
+      })
+    ).toBeVisible();
 
-    await page.locator(".ProseMirror").click();
-    await page.keyboard.type("e2e-content");
-
-    await page.getByRole("button", { name: "保存" }).click();
-    await expect(page.getByText("状态：")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Save" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Save As" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Export HTML" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Export PDF" })).toBeDisabled();
   });
 
-  test("find/replace and export flow", async ({ page }) => {
+  test("keeps search and replace available in browser mode", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByPlaceholder("查找").fill("FerrumNote");
-    await page.getByPlaceholder("替换为").fill("FerrumNoteX");
-    await page.getByRole("button", { name: "全部替换" }).click();
-    await expect(page.getByText("匹配:")).toBeVisible();
+    await page.getByPlaceholder("Find").fill("FerrumNote");
+    await page.getByPlaceholder("Replace").fill("FerrumNoteX");
+    await page.getByRole("button", { name: "Replace All" }).click();
 
-    await page.getByRole("button", { name: "导出 HTML" }).click();
-    await page.getByRole("button", { name: "导出 PDF" }).click();
+    await expect(page.getByText("Matches:", { exact: false })).toBeVisible();
+    await expect(page.locator(".ProseMirror")).toBeVisible();
   });
 });

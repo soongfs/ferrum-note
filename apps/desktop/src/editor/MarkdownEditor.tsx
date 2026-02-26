@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { htmlToMarkdown, markdownToHtml } from "./markdown";
+import { createMarkdownCodec } from "./markdownCodec";
 
 type MarkdownEditorProps = {
   value: string;
@@ -34,15 +34,27 @@ function ToolbarButton({
 }
 
 export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
+  const applyingExternalUpdate = useRef(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
       Link.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder: "开始输入 Markdown 内容..." })
     ],
-    content: markdownToHtml(value),
+    content: "<p></p>",
+    onCreate({ editor: instance }) {
+      const codec = createMarkdownCodec(instance.schema);
+      applyingExternalUpdate.current = true;
+      instance.commands.setContent(codec.parseMarkdown(value).toJSON(), false);
+      applyingExternalUpdate.current = false;
+    },
     onUpdate({ editor: instance }) {
-      onChange(htmlToMarkdown(instance.getHTML()));
+      if (applyingExternalUpdate.current) {
+        return;
+      }
+      const codec = createMarkdownCodec(instance.schema);
+      onChange(codec.serializeMarkdown(instance.state.doc));
     }
   });
 
@@ -51,9 +63,12 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
       return;
     }
 
-    const current = htmlToMarkdown(editor.getHTML());
+    const codec = createMarkdownCodec(editor.schema);
+    const current = codec.serializeMarkdown(editor.state.doc);
     if (current !== value) {
-      editor.commands.setContent(markdownToHtml(value), false);
+      applyingExternalUpdate.current = true;
+      editor.commands.setContent(codec.parseMarkdown(value).toJSON(), false);
+      applyingExternalUpdate.current = false;
     }
   }, [editor, value]);
 

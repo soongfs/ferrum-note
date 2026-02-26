@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AppConfig,
+  ExportResponse,
   OpenFileResponse,
   SaveFileResponse,
   WatchStartedResponse
@@ -27,6 +28,14 @@ export async function saveAsFile(path: string, content: string): Promise<SaveFil
     path,
     content
   });
+}
+
+export async function exportHtml(path: string, content: string): Promise<ExportResponse> {
+  return invoke<ExportResponse>("export_html", { path, content });
+}
+
+export async function exportPdf(path: string, content: string): Promise<ExportResponse> {
+  return invoke<ExportResponse>("export_pdf", { path, content });
 }
 
 export async function watchFile(path: string): Promise<WatchStartedResponse> {

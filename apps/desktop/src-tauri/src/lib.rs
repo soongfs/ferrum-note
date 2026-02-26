@@ -1,5 +1,5 @@
 use fn_config::AppConfig;
-use fn_core::{OpenFileResponse, SaveFileResponse, WatchStartedResponse};
+use fn_core::{ExportResponse, OpenFileResponse, SaveFileResponse, WatchStartedResponse};
 
 #[tauri::command]
 fn open_file(path: String) -> Result<OpenFileResponse, String> {
@@ -14,6 +14,16 @@ fn save_file(path: String, content: String, expected_version: u64) -> Result<Sav
 #[tauri::command]
 fn save_as_file(path: String, content: String) -> Result<SaveFileResponse, String> {
     fn_fs::save_as_file(&path, &content).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn export_html(path: String, content: String) -> Result<ExportResponse, String> {
+    fn_export::export_html(&path, &content).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn export_pdf(path: String, content: String) -> Result<ExportResponse, String> {
+    fn_export::export_pdf(&path, &content).map_err(|err| err.to_string())
 }
 
 #[tauri::command]
@@ -33,6 +43,8 @@ pub fn run() {
             open_file,
             save_file,
             save_as_file,
+            export_html,
+            export_pdf,
             watch_file,
             load_app_config
         ])

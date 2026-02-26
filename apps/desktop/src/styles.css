@@ -49,6 +49,12 @@ body {
   margin-bottom: 12px;
 }
 
+.export-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 .search-bar {
   grid-template-columns: 1fr 1fr auto auto auto;
 }
@@ -63,7 +69,8 @@ body {
 }
 
 .file-bar button,
-.search-bar button {
+.search-bar button,
+.export-bar button {
   border: 1px solid #176fcb;
   border-radius: 10px;
   background: #1f7bdb;

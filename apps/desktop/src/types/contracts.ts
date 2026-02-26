@@ -12,6 +12,11 @@ export type SaveFileResponse = {
   conflict: boolean;
 };
 
+export type ExportResponse = {
+  output_path: string;
+  bytes_written: number;
+};
+
 export type WatchStartedResponse = {
   path: string;
   watch_id: string;

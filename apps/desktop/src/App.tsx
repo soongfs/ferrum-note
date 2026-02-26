@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadAppConfig, openFile, saveAsFile, saveFile, watchFile } from "./api/bridge";
+import {
+  exportHtml,
+  exportPdf,
+  loadAppConfig,
+  openFile,
+  saveAsFile,
+  saveFile,
+  watchFile
+} from "./api/bridge";
 import { MarkdownEditor } from "./editor/MarkdownEditor";
 import { countMatches, replaceAll, replaceNext } from "./search/ops";
 import type { EditorSyncPayload } from "./types/contracts";
@@ -119,6 +127,34 @@ function App() {
     }
   }
 
+  async function handleExportHtml() {
+    const output = window.prompt("HTML 导出路径", activePath ? `${activePath}.html` : "");
+    if (!output || !output.trim()) {
+      return;
+    }
+
+    try {
+      const exported = await exportHtml(output.trim(), markdown);
+      setStatus(`HTML 导出成功: ${exported.output_path}`);
+    } catch (error) {
+      setStatus(`HTML 导出失败: ${String(error)}`);
+    }
+  }
+
+  async function handleExportPdf() {
+    const output = window.prompt("PDF 导出路径", activePath ? `${activePath}.pdf` : "");
+    if (!output || !output.trim()) {
+      return;
+    }
+
+    try {
+      const exported = await exportPdf(output.trim(), markdown);
+      setStatus(`PDF 导出结果: ${exported.output_path}`);
+    } catch (error) {
+      setStatus(`PDF 导出失败: ${String(error)}`);
+    }
+  }
+
   function handleReplaceNext() {
     if (!query) {
       setStatus("请输入查找内容");
@@ -198,6 +234,15 @@ function App() {
         </button>
         <button type="button" onClick={handleSaveAs}>
           另存为
+        </button>
+      </section>
+
+      <section className="export-bar">
+        <button type="button" onClick={handleExportHtml}>
+          导出 HTML
+        </button>
+        <button type="button" onClick={handleExportPdf}>
+          导出 PDF
         </button>
       </section>
 

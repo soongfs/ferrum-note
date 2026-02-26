@@ -1,9 +1,9 @@
 # Git Convention
 
 ## Branching
-- Long-lived: `main`
+- Long-lived: `master`
 - Working branches: `feature/*`, `fix/*`, `release/*`
-- Do not commit directly to `main`; merge via pull request.
+- Do not commit directly to `master`; merge via pull request.
 
 ## Commit Message
 Use Conventional Commits:
@@ -22,6 +22,6 @@ Commit body must include the following sections:
 - `Test`
 
 ## Merge Strategy
-- Use `Squash and merge` into `main`
+- Use `Squash and merge` into `master`
 - PR title must satisfy Conventional Commits
 - CI must be green before merge

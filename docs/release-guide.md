@@ -44,7 +44,7 @@ pnpm tauri build
 
 ## Release Eligibility
 - Release candidates are cut from `master` only.
-- Required checks before tagging:
+- Required checks before stable tagging:
   - `pnpm lint && pnpm test && pnpm build` (in `apps/desktop`)
   - `cargo test --workspace` (repo root)
   - GitHub CI must be green for the target commit.
@@ -54,21 +54,22 @@ pnpm tauri build
 - Current pre-release target: `v0.1.0-alpha.1`
 
 ## Tag Update Policy
-- Create a new tag only after the release candidate commit is merged to `master`.
+- `vX.Y.Z-alpha.N` tags are auto-generated after successful CI on `master` push.
+- Stable tags (`vX.Y.Z`) are created manually after explicit release approval.
 - Never move or force-update an existing tag.
-- If a release is bad, fix on `master` and cut a new tag (`v0.1.0-alpha.2`, `v0.1.0-alpha.3`, ...).
+- If a release is bad, fix on `master` and cut a new tag.
 
 ## Release Workflow
 1. Merge feature branch into `master` via PR (squash merge).
-2. Ensure CI is green.
-3. Create and push version tag.
-4. `Release Build` workflow builds bundles and publishes assets to GitHub Releases.
+2. CI runs on `master` push.
+3. `Auto Prerelease` cuts next `vX.Y.Z-alpha.N` tag and publishes prerelease assets automatically.
+4. For stable release, create and push a stable tag manually; `Release Build` publishes stable assets.
 
-## Tag And Publish
+## Stable Tag And Publish
 
 ```bash
-git tag -a v0.1.0-alpha.1 -m "chore(release): cut v0.1.0-alpha.1"
-git push origin v0.1.0-alpha.1
+git tag -a v0.1.0 -m "chore(release): cut v0.1.0"
+git push origin v0.1.0
 ```
 
 ## Repository Rename (`FerrumNote` -> `ferrum-note`)

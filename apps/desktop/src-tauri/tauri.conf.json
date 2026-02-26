@@ -30,6 +30,7 @@
     "category": "Productivity",
     "createUpdaterArtifacts": false,
     "copyright": "Copyright (c) FerrumNote",
-    "externalBin": []
+    "externalBin": [],
+    "icon": ["icons/icon.png"]
   }
 }

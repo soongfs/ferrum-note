@@ -1,29 +1,37 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   exportHtml,
   exportPdf,
+  listWorkspaceEntries,
   loadAppConfig,
   openFile,
+  pickWorkspaceDirectory,
   saveAsFile,
   saveFile,
+  setWorkspaceRoot,
   watchFile
 } from "./api/bridge";
-import { resolveMessages } from "./i18n/messages";
 import { MarkdownEditor } from "./editor/MarkdownEditor";
-import { countMatches, replaceAll, replaceNext } from "./search/ops";
+import { resolveMessages } from "./i18n/messages";
 import {
   DesktopOnlyError,
   detectRuntimeMode,
   getRuntimeCapabilities
 } from "./runtime/capabilities";
-import type { EditorSyncPayload } from "./types/contracts";
+import { countMatches, replaceAll, replaceNext } from "./search/ops";
+import type { EditorSyncPayload, WorkspaceEntry } from "./types/contracts";
+import {
+  calculateDocumentStats,
+  sortWorkspaceEntriesForView
+} from "./workspace/viewModel";
 
 const INITIAL_DOC = `# FerrumNote\n\nStart writing your Markdown notes.`;
+
+type SaveState = "saved" | "unsaved" | "autosaving" | "conflict" | "error";
 
 function App() {
   const [markdown, setMarkdown] = useState(INITIAL_DOC);
   const [activePath, setActivePath] = useState("");
-  const [pathInput, setPathInput] = useState("");
   const [version, setVersion] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState("Ready");
@@ -32,11 +40,19 @@ function App() {
   const [replacement, setReplacement] = useState("");
   const [uiLanguage, setUiLanguage] = useState("en");
   const [showDebugPanels, setShowDebugPanels] = useState(false);
+  const [workspaceRootPath, setWorkspaceRootPath] = useState("");
+  const [directoryEntries, setDirectoryEntries] = useState<Record<string, WorkspaceEntry[]>>({});
+  const [expandedDirectories, setExpandedDirectories] = useState<string[]>([]);
+  const [loadingDirectories, setLoadingDirectories] = useState<string[]>([]);
+  const [selectedEntryPath, setSelectedEntryPath] = useState("");
+  const [saveState, setSaveState] = useState<SaveState>("saved");
   const previousMarkdown = useRef(INITIAL_DOC);
 
   const runtimeMode = useMemo(() => detectRuntimeMode(), []);
   const runtimeCapabilities = useMemo(() => getRuntimeCapabilities(runtimeMode), [runtimeMode]);
   const messages = useMemo(() => resolveMessages(uiLanguage), [uiLanguage]);
+  const expandedDirectorySet = useMemo(() => new Set(expandedDirectories), [expandedDirectories]);
+  const loadingDirectorySet = useMemo(() => new Set(loadingDirectories), [loadingDirectories]);
 
   useEffect(() => {
     loadAppConfig()
@@ -44,6 +60,7 @@ function App() {
         setAutosaveMs(cfg.autosave_ms || 1500);
         setUiLanguage(cfg.ui_language || "en");
         setShowDebugPanels(Boolean(cfg.show_debug_panels));
+        setWorkspaceRootPath(cfg.workspace_root || "");
       })
       .catch(() => {
         setAutosaveMs(1500);
@@ -66,6 +83,7 @@ function App() {
   }, [markdown]);
 
   const matchCount = useMemo(() => countMatches(markdown, query), [markdown, query]);
+  const documentStats = useMemo(() => calculateDocumentStats(markdown), [markdown]);
 
   const syncPayload: EditorSyncPayload = {
     doc_id: activePath || "untitled",
@@ -75,9 +93,85 @@ function App() {
     changed_blocks: changedBlocks
   };
 
+  const saveStateLabel = useMemo(() => {
+    switch (saveState) {
+      case "saved":
+        return messages.app.saveStateSaved;
+      case "unsaved":
+        return messages.app.saveStateUnsaved;
+      case "autosaving":
+        return messages.app.saveStateAutosaving;
+      case "conflict":
+        return messages.app.saveStateConflict;
+      case "error":
+        return messages.app.saveStateError;
+      default:
+        return messages.app.saveStateSaved;
+    }
+  }, [
+    messages.app.saveStateAutosaving,
+    messages.app.saveStateConflict,
+    messages.app.saveStateError,
+    messages.app.saveStateSaved,
+    messages.app.saveStateUnsaved,
+    saveState
+  ]);
+
+  const runtimeModeLabel = runtimeMode === "tauri" ? messages.app.modeTauri : messages.app.modeWeb;
+
+  const loadDirectory = useCallback(
+    async (relativePath?: string) => {
+      if (!runtimeCapabilities.workspaceExplorer || !workspaceRootPath) {
+        return;
+      }
+
+      const target = (relativePath || "").trim();
+      setLoadingDirectories((current) =>
+        current.includes(target) ? current : [...current, target]
+      );
+
+      try {
+        const listed = await listWorkspaceEntries(target || undefined);
+        const nextEntries = sortWorkspaceEntriesForView(listed.entries);
+        const currentRelative = listed.current_relative_path || "";
+
+        setDirectoryEntries((current) => ({
+          ...current,
+          [currentRelative]: nextEntries
+        }));
+      } catch (error) {
+        setStatus(toStatus(messages.app.explorerLoadFailed, error));
+      } finally {
+        setLoadingDirectories((current) => current.filter((item) => item !== target));
+      }
+    },
+    [
+      messages.app.explorerLoadFailed,
+      runtimeCapabilities.workspaceExplorer,
+      workspaceRootPath
+    ]
+  );
+
+  useEffect(() => {
+    setDirectoryEntries({});
+    setExpandedDirectories([]);
+    setSelectedEntryPath("");
+  }, [workspaceRootPath]);
+
+  useEffect(() => {
+    if (!runtimeCapabilities.workspaceExplorer || !workspaceRootPath) {
+      return;
+    }
+
+    void loadDirectory();
+  }, [loadDirectory, runtimeCapabilities.workspaceExplorer, workspaceRootPath]);
+
   function updateDocument(next: string) {
     setMarkdown(next);
     setDirty(true);
+    if (saveState !== "autosaving") {
+      setSaveState("unsaved");
+    }
   }
 
   function toStatus(errorPrefix: string, error: unknown): string {
@@ -87,32 +181,80 @@ function App() {
     return `${errorPrefix}: ${String(error)}`;
   }
 
-  async function handleOpen() {
+  async function handleOpenFolder() {
+    if (!runtimeCapabilities.workspaceExplorer) {
+      setStatus(messages.app.desktopModeNotice);
+      return;
+    }
+
+    try {
+      const selected = await pickWorkspaceDirectory();
+      if (!selected) {
+        return;
+      }
+
+      const nextConfig = await setWorkspaceRoot(selected);
+      const nextRoot = nextConfig.workspace_root || "";
+      setWorkspaceRootPath(nextRoot);
+      setStatus(`Workspace: ${nextRoot}`);
+    } catch (error) {
+      setStatus(toStatus(messages.app.workspaceSetFailed, error));
+    }
+  }
+
+  async function handleRefreshExplorer() {
+    if (!runtimeCapabilities.workspaceExplorer || !workspaceRootPath) {
+      setStatus(messages.app.openFolderHint);
+      return;
+    }
+
+    const targets = Array.from(new Set(["", ...expandedDirectories]));
+    await Promise.all(targets.map((target) => loadDirectory(target || undefined)));
+    setStatus(messages.app.explorerRefreshed);
+  }
+
+  async function openFromExplorer(entry: WorkspaceEntry) {
     if (!runtimeCapabilities.fileIO) {
       setStatus(messages.app.desktopModeNotice);
       return;
     }
 
-    if (!pathInput.trim()) {
-      setStatus(messages.app.enterPathHint);
-      return;
-    }
-
     try {
-      const file = await openFile(pathInput.trim());
+      const file = await openFile(entry.absolute_path);
       setMarkdown(file.content);
       previousMarkdown.current = file.content;
       setActivePath(file.path);
-      setPathInput(file.path);
       setVersion(file.version);
       setDirty(false);
+      setSelectedEntryPath(entry.relative_path);
+      setSaveState("saved");
       setStatus(`Opened: ${file.path}`);
+
       if (runtimeCapabilities.fileWatch) {
         await watchFile(file.path);
       }
     } catch (error) {
       setStatus(toStatus(messages.app.openFailed, error));
+      setSaveState("error");
     }
+  }
+
+  async function handleExplorerEntry(entry: WorkspaceEntry) {
+    if (entry.kind === "directory") {
+      const relative = entry.relative_path;
+      if (expandedDirectorySet.has(relative)) {
+        setExpandedDirectories((current) => current.filter((item) => item !== relative));
+        return;
+      }
+
+      setExpandedDirectories((current) => [...current, relative]);
+      if (!directoryEntries[relative]) {
+        await loadDirectory(relative);
+      }
+      return;
+    }
+
+    await openFromExplorer(entry);
   }
 
   async function handleSave() {
@@ -127,18 +269,22 @@ function App() {
     }
 
     try {
+      setSaveState("autosaving");
       const saved = await saveFile(activePath, markdown, version);
       if (saved.conflict) {
         setStatus(messages.app.saveConflict);
+        setSaveState("conflict");
         return;
       }
 
       setVersion(saved.version);
       setDirty(false);
       previousMarkdown.current = markdown;
+      setSaveState("saved");
       setStatus(`Saved: ${saved.path}`);
     } catch (error) {
       setStatus(toStatus(messages.app.saveFailed, error));
+      setSaveState("error");
     }
   }
 
@@ -148,24 +294,26 @@ function App() {
       return;
     }
 
-    const path = window.prompt(messages.app.saveAs, activePath || pathInput || "");
+    const path = window.prompt(messages.app.saveAs, activePath || "");
     if (!path || !path.trim()) {
       return;
     }
 
     try {
+      setSaveState("autosaving");
       const saved = await saveAsFile(path.trim(), markdown);
       setActivePath(saved.path);
-      setPathInput(saved.path);
       setVersion(saved.version);
       setDirty(false);
       previousMarkdown.current = markdown;
+      setSaveState("saved");
       setStatus(`Saved as: ${saved.path}`);
       if (runtimeCapabilities.fileWatch) {
         await watchFile(saved.path);
       }
     } catch (error) {
       setStatus(toStatus(messages.app.saveAsFailed, error));
+      setSaveState("error");
     }
   }
 
@@ -201,7 +349,7 @@ function App() {
 
     try {
       const exported = await exportPdf(output.trim(), markdown);
-      setStatus(`PDF export result: ${exported.output_path}`);
+      setStatus(`PDF exported: ${exported.output_path}`);
     } catch (error) {
       setStatus(toStatus(messages.app.exportPdfFailed, error));
     }
@@ -246,18 +394,22 @@ function App() {
 
     const timer = window.setTimeout(async () => {
       try {
+        setSaveState("autosaving");
         const saved = await saveFile(activePath, markdown, version);
         if (saved.conflict) {
           setStatus(messages.app.autosaveConflict);
+          setSaveState("conflict");
           return;
         }
 
         setVersion(saved.version);
         setDirty(false);
         previousMarkdown.current = markdown;
+        setSaveState("saved");
         setStatus(`Autosaved at ${new Date().toLocaleTimeString()}`);
       } catch (error) {
         setStatus(toStatus(messages.app.autosaveFailed, error));
+        setSaveState("error");
       }
     }, autosaveMs);
 
@@ -273,41 +425,76 @@ function App() {
     version
   ]);
 
+  function renderExplorer(relativePath: string, depth: number) {
+    const entries = directoryEntries[relativePath] || [];
+
+    if (!entries.length) {
+      if (loadingDirectorySet.has(relativePath)) {
+        return <p className="explorer-empty">{messages.editor.loading}</p>;
+      }
+
+      return <p className="explorer-empty">{messages.app.explorerEmpty}</p>;
+    }
+
+    return (
+      <ul className="explorer-list" role="tree">
+        {entries.map((entry) => {
+          const isDirectory = entry.kind === "directory";
+          const isExpanded = expandedDirectorySet.has(entry.relative_path);
+          const isSelected = selectedEntryPath === entry.relative_path;
+
+          return (
+            <li key={entry.relative_path || entry.absolute_path}>
+              <button
+                type="button"
+                className={`explorer-entry${isSelected ? " is-selected" : ""}`}
+                style={{ paddingLeft: `${12 + depth * 14}px` }}
+                onClick={() => {
+                  void handleExplorerEntry(entry);
+                }}
+                disabled={!runtimeCapabilities.workspaceExplorer}
+                data-testid={`explorer-item-${entry.relative_path.replace(/[^a-z0-9-_]/gi, "-")}`}
+              >
+                <span className="explorer-caret">{isDirectory ? (isExpanded ? "▾" : "▸") : "•"}</span>
+                <span className="explorer-name">{entry.name}</span>
+              </button>
+              {isDirectory && isExpanded ? (
+                <div className="explorer-children">{renderExplorer(entry.relative_path, depth + 1)}</div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
   return (
-    <main className="app-shell">
-      <header className="hero-panel">
-        <div>
+    <main className="workspace-shell">
+      <header className="top-bar">
+        <div className="top-bar-main">
           <p className="hero-eyebrow">Markdown Desktop Workspace</p>
           <h1>{messages.app.title}</h1>
           <p className="hero-subtitle">{messages.app.subtitle}</p>
+          <p className="workspace-path">
+            {messages.app.workspace}: {workspaceRootPath || messages.app.workspaceUnset}
+          </p>
         </div>
-        <div className="hero-status-chip">{dirty ? "Unsaved changes" : messages.app.ready}</div>
-      </header>
-
-      {runtimeMode === "web" ? <section className="runtime-banner">{messages.app.desktopModeNotice}</section> : null}
-
-      <section className="control-panel">
-        <div className="control-row">
-          <input
-            className="path-input"
-            value={pathInput}
-            onChange={(event) => setPathInput(event.target.value)}
-            placeholder={messages.app.filePathPlaceholder}
-            disabled={!runtimeCapabilities.fileIO}
-          />
+        <div className="top-actions">
           <button
             className="action-button"
             type="button"
-            onClick={handleOpen}
-            disabled={!runtimeCapabilities.fileIO}
+            onClick={handleOpenFolder}
+            disabled={!runtimeCapabilities.workspaceExplorer}
+            data-testid="open-folder-button"
           >
-            {messages.app.open}
+            {messages.app.openFolder}
           </button>
           <button
             className="action-button"
             type="button"
             onClick={handleSave}
             disabled={!runtimeCapabilities.fileIO}
+            data-testid="save-button"
           >
             {messages.app.save}
           </button>
@@ -316,31 +503,65 @@ function App() {
             type="button"
             onClick={handleSaveAs}
             disabled={!runtimeCapabilities.fileIO}
+            data-testid="save-as-button"
           >
             {messages.app.saveAs}
           </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={handleExportHtml}
+            disabled={!runtimeCapabilities.export}
+            data-testid="export-html-button"
+          >
+            {messages.app.exportHtml}
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={handleExportPdf}
+            disabled={!runtimeCapabilities.export}
+            data-testid="export-pdf-button"
+          >
+            {messages.app.exportPdf}
+          </button>
         </div>
+      </header>
 
-        <div className="control-row split-row">
-          <div className="split-actions">
+      {runtimeMode === "web" ? (
+        <section className="runtime-banner" data-testid="runtime-banner">
+          {messages.app.desktopModeNotice}
+        </section>
+      ) : null}
+
+      <section className="workspace-main">
+        <aside className="explorer-pane">
+          <div className="explorer-header">
+            <h2>{messages.app.explorerTitle}</h2>
             <button
-              className="action-button"
+              className="secondary-button"
               type="button"
-              onClick={handleExportHtml}
-              disabled={!runtimeCapabilities.export}
+              onClick={() => {
+                void handleRefreshExplorer();
+              }}
+              disabled={!runtimeCapabilities.workspaceExplorer || !workspaceRootPath}
+              data-testid="explorer-refresh-button"
             >
-              {messages.app.exportHtml}
-            </button>
-            <button
-              className="action-button"
-              type="button"
-              onClick={handleExportPdf}
-              disabled={!runtimeCapabilities.export}
-            >
-              {messages.app.exportPdf}
+              {messages.app.refresh}
             </button>
           </div>
-          <div className="split-actions">
+
+          {!workspaceRootPath ? (
+            <div className="explorer-empty-state">
+              <p>{messages.app.openFolderHint}</p>
+            </div>
+          ) : (
+            renderExplorer("", 0)
+          )}
+        </aside>
+
+        <section className="editor-pane">
+          <div className="editor-search-row">
             <input
               className="text-input"
               value={query}
@@ -353,41 +574,56 @@ function App() {
               onChange={(event) => setReplacement(event.target.value)}
               placeholder={messages.app.replacePlaceholder}
             />
-            <button className="secondary-button" type="button" onClick={handleReplaceNext}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={handleReplaceNext}
+              data-testid="replace-next-button"
+            >
               {messages.app.replaceNext}
             </button>
-            <button className="secondary-button" type="button" onClick={handleReplaceAll}>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={handleReplaceAll}
+              data-testid="replace-all-button"
+            >
               {messages.app.replaceAll}
             </button>
             <span className="match-counter">
               {messages.app.matches}: {matchCount}
             </span>
           </div>
-        </div>
+
+          <section className="editor-panel">
+            <MarkdownEditor value={markdown} onChange={updateDocument} labels={messages.editor} />
+          </section>
+        </section>
       </section>
 
-      <section className="editor-panel">
-        <MarkdownEditor value={markdown} onChange={updateDocument} labels={messages.editor} />
-      </section>
-
-      <section className="status-grid">
-        <article className="status-card">
-          <h2>{messages.app.status}</h2>
-          <p>{status}</p>
-        </article>
-        <article className="status-card">
-          <h2>{messages.app.path}</h2>
-          <p>{activePath || messages.app.unopened}</p>
-        </article>
-        <article className="status-card">
-          <h2>{messages.app.version}</h2>
-          <p>{version}</p>
-        </article>
-        <article className="status-card">
-          <h2>{messages.app.autosave}</h2>
-          <p>{autosaveMs} ms</p>
-        </article>
-      </section>
+      <footer className="status-bar">
+        <span>
+          {messages.app.status}: {status}
+        </span>
+        <span>
+          {messages.app.saveState}: {saveStateLabel}
+        </span>
+        <span>
+          {messages.app.wordCount}: {documentStats.words}
+        </span>
+        <span>
+          {messages.app.characterCount}: {documentStats.characters}
+        </span>
+        <span>
+          {messages.app.lineCount}: {documentStats.lines}
+        </span>
+        <span>
+          {messages.app.runtime}: {runtimeModeLabel}
+        </span>
+        <span>
+          {messages.app.path}: {activePath || messages.app.unopened}
+        </span>
+      </footer>
 
       <section className="debug-panel-toggle">
         <button

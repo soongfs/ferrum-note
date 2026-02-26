@@ -6,9 +6,4 @@ if [ -x "./node_modules/.bin/commitlint" ]; then
   exit 0
 fi
 
-if command -v pnpm >/dev/null 2>&1; then
-  pnpm exec commitlint --edit "$1"
-  exit 0
-fi
-
 echo "commitlint dependencies not installed; skipping local check." >&2

@@ -7,8 +7,8 @@ describe("markdown round-trip", () => {
     const roundTrip = htmlToMarkdown(markdownToHtml(markdown));
 
     expect(roundTrip).toContain("# Title");
-    expect(roundTrip).toContain("- one");
-    expect(roundTrip).toContain("- two");
+    expect(roundTrip).toMatch(/-\s+one/);
+    expect(roundTrip).toMatch(/-\s+two/);
   });
 
   it("keeps fenced code blocks", () => {

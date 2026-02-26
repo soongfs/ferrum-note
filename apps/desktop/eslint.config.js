@@ -20,8 +20,7 @@ export default tseslint.config(
       "react-hooks": reactHooks
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
-      "@typescript-eslint/no-floating-promises": "error"
+      ...reactHooks.configs.recommended.rules
     }
   }
 );

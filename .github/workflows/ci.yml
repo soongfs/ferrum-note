@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [master]
   push:
-    branches: [feature/**, fix/**, release/**]
+    branches: [master, feature/**, fix/**, release/**]
 
 jobs:
   frontend:

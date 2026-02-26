@@ -119,8 +119,33 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev
 
-      - name: Build bundles
+      - name: Build bundles (non-Windows)
+        if: runner.os != 'Windows'
         run: pnpm tauri build
+
+      - name: Build bundles (Windows prerelease wix version override)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tag = "${{ needs.prepare-tag.outputs.tag_name }}"
+          if ($tag -notmatch '^v(\d+)\.(\d+)\.(\d+)-alpha\.(\d+)$') {
+            throw "Unexpected prerelease tag format: $tag"
+          }
+
+          $wixVersion = "$($matches[1]).$($matches[2]).$($matches[3]).$($matches[4])"
+          $config = @{
+            bundle = @{
+              windows = @{
+                wix = @{
+                  version = $wixVersion
+                }
+              }
+            }
+          } | ConvertTo-Json -Depth 6
+
+          $configPath = "src-tauri/tauri.windows.prerelease.json"
+          Set-Content -Path $configPath -Value $config -Encoding UTF8
+          pnpm tauri build --config $configPath
 
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v4

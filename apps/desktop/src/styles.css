@@ -1,7 +1,10 @@
 :root {
   font-family: "Noto Sans SC", "Source Han Sans SC", sans-serif;
   color: #18202a;
-  background: radial-gradient(circle at top left, #eef5ff 0%, #f6f8fb 45%, #fbfcff 100%);
+  background:
+    radial-gradient(circle at 0% 0%, #e5f0ff 0%, transparent 36%),
+    radial-gradient(circle at 100% 0%, #ecfff8 0%, transparent 42%),
+    linear-gradient(180deg, #f7fbff 0%, #f3f7fb 55%, #f9fbff 100%);
 }
 
 * {
@@ -19,25 +22,126 @@ body {
 
 .app-shell {
   margin: 0 auto;
-  max-width: 980px;
-  padding: 32px 20px;
+  max-width: 1140px;
+  padding: 24px 18px 34px;
+}
+
+.app-header {
+  margin-bottom: 14px;
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: 40px;
+  font-size: 36px;
+  letter-spacing: 0.5px;
 }
 
 .app-header p {
-  margin-top: 8px;
+  margin: 4px 0 0;
   color: #42546a;
 }
 
-.app-placeholder {
-  margin-top: 24px;
-  border-radius: 14px;
-  border: 1px solid #d8e2f0;
+.editor-shell {
   background: #ffffffcc;
+  border: 1px solid #d2dff0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 25px #15395e12;
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid #dfe8f4;
+  background: #f7fafc;
+}
+
+.toolbar-button {
+  border: 1px solid #c4d5e8;
+  border-radius: 9px;
+  background: white;
+  color: #203142;
+  font-size: 13px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.toolbar-button.is-active {
+  background: #0f6bcf;
+  color: white;
+  border-color: #0f6bcf;
+}
+
+.toolbar-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.editor-content {
+  min-height: 420px;
+}
+
+.editor-content .ProseMirror {
+  min-height: 420px;
+  outline: none;
+  line-height: 1.65;
   padding: 20px;
   font-size: 16px;
+}
+
+.editor-content .ProseMirror p.is-editor-empty:first-child::before {
+  color: #8092a8;
+  content: attr(data-placeholder);
+  float: left;
+  pointer-events: none;
+  height: 0;
+}
+
+.editor-shortcut-hint {
+  margin: 0;
+  padding: 10px 14px;
+  border-top: 1px dashed #d8e3f0;
+  color: #5a6f85;
+  background: #fbfdff;
+  font-size: 12px;
+}
+
+.markdown-preview-panel {
+  margin-top: 16px;
+  border-radius: 14px;
+  border: 1px solid #d6e3f4;
+  background: #ffffffbf;
+  padding: 14px;
+}
+
+.markdown-preview-panel h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.markdown-preview-panel pre {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  background: #f3f7fb;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    padding: 14px 10px 24px;
+  }
+
+  .app-header h1 {
+    font-size: 30px;
+  }
+
+  .editor-content .ProseMirror {
+    min-height: 320px;
+    padding: 14px;
+  }
 }

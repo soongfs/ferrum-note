@@ -1,8 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { common, createLowlight } from "lowlight";
 import { createMarkdownCodec } from "./markdownCodec";
 
 type MarkdownEditorProps = {
@@ -35,10 +37,17 @@ function ToolbarButton({
 
 export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
   const applyingExternalUpdate = useRef(false);
+  const [codeLanguage, setCodeLanguage] = useState("plaintext");
+  const lowlight = useMemo(() => createLowlight(common), []);
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        codeBlock: false
+      }),
+      CodeBlockLowlight.configure({
+        lowlight
+      }),
       Link.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder: "开始输入 Markdown 内容..." })
     ],
@@ -72,6 +81,24 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
     }
   }, [editor, value]);
 
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    const syncLanguage = () => {
+      const attrs = editor.getAttributes("codeBlock");
+      if (attrs.language) {
+        setCodeLanguage(attrs.language as string);
+      }
+    };
+
+    editor.on("selectionUpdate", syncLanguage);
+    return () => {
+      editor.off("selectionUpdate", syncLanguage);
+    };
+  }, [editor]);
+
   if (!editor) {
     return <div className="editor-loading">编辑器加载中...</div>;
   }
@@ -101,9 +128,32 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
         />
         <ToolbarButton
           label="代码块"
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+          onClick={() =>
+            editor
+              .chain()
+              .focus()
+              .toggleCodeBlock({
+                language: codeLanguage
+              })
+              .run()
+          }
           active={editor.isActive("codeBlock")}
         />
+        <label className="code-language-select-label">
+          语言
+          <select
+            className="code-language-select"
+            value={codeLanguage}
+            onChange={(event) => setCodeLanguage(event.target.value)}
+          >
+            <option value="plaintext">Plain Text</option>
+            <option value="rust">Rust</option>
+            <option value="typescript">TypeScript</option>
+            <option value="javascript">JavaScript</option>
+            <option value="bash">Bash</option>
+            <option value="json">JSON</option>
+          </select>
+        </label>
         <ToolbarButton
           label="无序列表"
           onClick={() => editor.chain().focus().toggleBulletList().run()}

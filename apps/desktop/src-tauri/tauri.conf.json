@@ -15,7 +15,8 @@
         "title": "FerrumNote",
         "width": 1280,
         "height": 860,
-        "resizable": true
+        "resizable": true,
+        "fullscreen": false
       }
     ],
     "security": {
@@ -25,6 +26,10 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": []
+    "shortDescription": "FerrumNote Markdown Editor",
+    "category": "Productivity",
+    "createUpdaterArtifacts": false,
+    "copyright": "Copyright (c) FerrumNote",
+    "externalBin": []
   }
 }

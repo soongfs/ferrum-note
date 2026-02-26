@@ -24,6 +24,8 @@ pnpm install
 pnpm tauri dev
 ```
 
+Then use **Open Folder** to configure `workspace_root` and browse Markdown files in explorer.
+
 ### Browser Mode (Capability Degraded)
 
 ```bash
@@ -33,6 +35,7 @@ pnpm dev
 ```
 
 In browser mode, desktop-only actions (`Open/Save/Save As/Export/Watch`) are intentionally disabled.
+Explorer file IO is disabled as well.
 
 ## Local Production Build
 
@@ -45,8 +48,8 @@ pnpm tauri build
 ## Release Eligibility
 - Release candidates are cut from `master` only.
 - Required checks before stable tagging:
-  - `pnpm lint && pnpm test && pnpm build` (in `apps/desktop`)
-  - `cargo test --workspace` (repo root)
+  - `pnpm lint && pnpm test && pnpm test:e2e && pnpm build` (in `apps/desktop`)
+  - `cargo test --workspace --all-targets` (repo root)
   - GitHub CI must be green for the target commit.
 
 ## Versioning

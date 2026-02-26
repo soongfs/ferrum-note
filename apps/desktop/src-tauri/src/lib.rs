@@ -7,7 +7,11 @@ fn open_file(path: String) -> Result<OpenFileResponse, String> {
 }
 
 #[tauri::command]
-fn save_file(path: String, content: String, expected_version: u64) -> Result<SaveFileResponse, String> {
+fn save_file(
+    path: String,
+    content: String,
+    expected_version: u64,
+) -> Result<SaveFileResponse, String> {
     fn_fs::save_file(&path, &content, expected_version).map_err(|err| err.to_string())
 }
 

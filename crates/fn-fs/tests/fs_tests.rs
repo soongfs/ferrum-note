@@ -12,12 +12,8 @@ fn save_file_returns_conflict_when_expected_version_is_stale() {
     let open = open_file(path.to_str().expect("path must be utf-8")).expect("open should work");
 
     fs::write(&path, "external change").expect("external write should work");
-    let save = save_file(
-        path.to_str().expect("path must be utf-8"),
-        "local draft",
-        open.version,
-    )
-    .expect("save should return conflict payload");
+    let save = save_file(path.to_str().expect("path must be utf-8"), "local draft", open.version)
+        .expect("save should return conflict payload");
 
     assert!(save.conflict);
     assert_eq!(save.bytes_written, 0);

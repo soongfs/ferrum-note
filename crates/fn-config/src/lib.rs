@@ -95,9 +95,7 @@ fn merge_with_default(partial: PartialConfig) -> AppConfig {
         autosave_ms: partial.autosave_ms.unwrap_or(defaults.autosave_ms),
         theme: partial.theme.unwrap_or(defaults.theme),
         font_size: partial.font_size.unwrap_or(defaults.font_size),
-        recent_files_limit: partial
-            .recent_files_limit
-            .unwrap_or(defaults.recent_files_limit),
+        recent_files_limit: partial.recent_files_limit.unwrap_or(defaults.recent_files_limit),
         line_width_hint: partial.line_width_hint.unwrap_or(defaults.line_width_hint),
     }
 }

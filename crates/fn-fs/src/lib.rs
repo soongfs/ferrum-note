@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::Write;
@@ -47,15 +47,14 @@ pub fn open_file(path: &str) -> Result<OpenFileResponse, FsError> {
     let last_modified = last_modified_epoch_ms(&metadata);
     let version = hash_version(&bytes, last_modified);
 
-    Ok(OpenFileResponse {
-        path: normalized.display().to_string(),
-        content,
-        version,
-        last_modified,
-    })
+    Ok(OpenFileResponse { path: normalized.display().to_string(), content, version, last_modified })
 }
 
-pub fn save_file(path: &str, content: &str, expected_version: u64) -> Result<SaveFileResponse, FsError> {
+pub fn save_file(
+    path: &str,
+    content: &str,
+    expected_version: u64,
+) -> Result<SaveFileResponse, FsError> {
     let normalized = normalize_write_target(path)?;
 
     if !normalized.exists() {
@@ -115,10 +114,7 @@ pub fn watch_file(path: &str) -> Result<WatchStartedResponse, FsError> {
     let mut map = WATCHERS.lock().map_err(|_| FsError::Lock)?;
     map.insert(watch_id.clone(), watcher);
 
-    Ok(WatchStartedResponse {
-        path: normalized.display().to_string(),
-        watch_id,
-    })
+    Ok(WatchStartedResponse { path: normalized.display().to_string(), watch_id })
 }
 
 fn normalize_existing_file(path: &str) -> Result<PathBuf, FsError> {
@@ -169,18 +165,13 @@ fn normalize_path(path: &str) -> Result<PathBuf, FsError> {
 }
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<u64, FsError> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| FsError::InvalidPath(path.display().to_string()))?;
+    let parent = path.parent().ok_or_else(|| FsError::InvalidPath(path.display().to_string()))?;
     let file_name = path
         .file_name()
         .and_then(|f| f.to_str())
         .ok_or_else(|| FsError::InvalidPath(path.display().to_string()))?;
 
-    let stamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
+    let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
 
     let tmp_path = parent.join(format!(".{file_name}.ferrumnote-{stamp}.tmp"));
 
@@ -227,10 +218,7 @@ fn last_modified_epoch_ms(metadata: &fs::Metadata) -> u64 {
 }
 
 fn make_watch_id() -> String {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
+    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
     format!("watch-{nanos}")
 }
 

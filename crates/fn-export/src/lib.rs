@@ -22,10 +22,7 @@ pub fn export_html(path: &str, content: &str) -> Result<ExportResponse, ExportEr
     let html = markdown_to_html(content, &Options::default());
     let bytes_written = atomic_write(&target, html.as_bytes())?;
 
-    Ok(ExportResponse {
-        output_path: target.display().to_string(),
-        bytes_written,
-    })
+    Ok(ExportResponse { output_path: target.display().to_string(), bytes_written })
 }
 
 pub fn export_pdf(path: &str, content: &str) -> Result<ExportResponse, ExportError> {
@@ -45,19 +42,13 @@ pub fn export_pdf(path: &str, content: &str) -> Result<ExportResponse, ExportErr
         Ok(output) if output.status.success() => {
             let bytes_written = fs::metadata(&target)?.len();
             let _ = fs::remove_file(&tmp_html);
-            Ok(ExportResponse {
-                output_path: target.display().to_string(),
-                bytes_written,
-            })
+            Ok(ExportResponse { output_path: target.display().to_string(), bytes_written })
         }
         _ => {
             let fallback = target.with_extension("fallback.html");
             let bytes_written = atomic_write(&fallback, html.as_bytes())?;
             let _ = fs::remove_file(&tmp_html);
-            Ok(ExportResponse {
-                output_path: fallback.display().to_string(),
-                bytes_written,
-            })
+            Ok(ExportResponse { output_path: fallback.display().to_string(), bytes_written })
         }
     }
 }
@@ -86,20 +77,15 @@ fn normalize_target(path: &str) -> Result<PathBuf, ExportError> {
 }
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<u64, ExportError> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| ExportError::InvalidPath(path.display().to_string()))?;
+    let parent =
+        path.parent().ok_or_else(|| ExportError::InvalidPath(path.display().to_string()))?;
     let file_name = path
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(|| ExportError::InvalidPath(path.display().to_string()))?;
 
     let tmp = parent.join(format!(".{file_name}.tmp"));
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .open(&tmp)?;
+    let mut file = fs::OpenOptions::new().create(true).truncate(true).write(true).open(&tmp)?;
 
     file.write_all(bytes)?;
     file.sync_all()?;

@@ -7,7 +7,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use fn_core::{OpenFileResponse, SaveFileResponse, WatchStartedResponse};
+use fn_core::{
+    ListWorkspaceEntriesResponse, OpenFileResponse, SaveFileResponse, WatchStartedResponse,
+    WorkspaceEntry, WorkspaceEntryKind,
+};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use once_cell::sync::Lazy;
 use thiserror::Error;
@@ -27,6 +30,10 @@ pub enum FsError {
     IsDirectory(String),
     #[error("permission denied: {0}")]
     PermissionDenied(String),
+    #[error("out of workspace: {0}")]
+    OutOfWorkspace(String),
+    #[error("invalid relative path: {0}")]
+    InvalidRelativePath(String),
     #[error("version conflict")]
     VersionConflict,
     #[error("utf-8 decode error: {0}")]
@@ -115,6 +122,78 @@ pub fn watch_file(path: &str) -> Result<WatchStartedResponse, FsError> {
     map.insert(watch_id.clone(), watcher);
 
     Ok(WatchStartedResponse { path: normalized.display().to_string(), watch_id })
+}
+
+pub fn list_workspace_entries(
+    workspace_root: &str,
+    relative_path: Option<&str>,
+) -> Result<ListWorkspaceEntriesResponse, FsError> {
+    let root = normalize_workspace_root(workspace_root)?;
+    let current = resolve_workspace_relative_path(&root, relative_path)?;
+
+    if !current.exists() {
+        return Err(FsError::FileNotFound(current.display().to_string()));
+    }
+    if !current.is_dir() {
+        return Err(FsError::InvalidPath(format!(
+            "target is not a directory: {}",
+            current.display()
+        )));
+    }
+
+    let mut entries = Vec::new();
+    for item in fs::read_dir(&current)? {
+        let item = item?;
+        let path = item.path();
+
+        let canonical = match path.canonicalize() {
+            Ok(target) => target,
+            Err(_) => continue,
+        };
+        if !canonical.starts_with(&root) {
+            continue;
+        }
+
+        let metadata = item.metadata()?;
+        let name = item.file_name().to_string_lossy().to_string();
+
+        if metadata.is_dir() {
+            entries.push(WorkspaceEntry {
+                name,
+                relative_path: relative_path_string(&root, &path)?,
+                absolute_path: path.display().to_string(),
+                kind: WorkspaceEntryKind::Directory,
+                modified_at: last_modified_epoch_ms(&metadata),
+            });
+            continue;
+        }
+
+        if metadata.is_file() && is_markdown_file(&path) {
+            entries.push(WorkspaceEntry {
+                name,
+                relative_path: relative_path_string(&root, &path)?,
+                absolute_path: path.display().to_string(),
+                kind: WorkspaceEntryKind::Markdown,
+                modified_at: last_modified_epoch_ms(&metadata),
+            });
+        }
+    }
+
+    entries.sort_by(|left, right| {
+        let left_rank = entry_kind_rank(&left.kind);
+        let right_rank = entry_kind_rank(&right.kind);
+
+        left_rank
+            .cmp(&right_rank)
+            .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
+            .then_with(|| left.name.cmp(&right.name))
+    });
+
+    Ok(ListWorkspaceEntriesResponse {
+        root_path: root.display().to_string(),
+        current_relative_path: relative_path_string(&root, &current)?,
+        entries,
+    })
 }
 
 fn normalize_existing_file(path: &str) -> Result<PathBuf, FsError> {
@@ -224,5 +303,75 @@ fn map_permission_err(err: std::io::Error, path: &Path) -> FsError {
         FsError::PermissionDenied(path.display().to_string())
     } else {
         FsError::Io(err)
+    }
+}
+
+fn normalize_workspace_root(path: &str) -> Result<PathBuf, FsError> {
+    if path.trim().is_empty() {
+        return Err(FsError::EmptyPath);
+    }
+
+    let root = PathBuf::from(path);
+    if !root.exists() {
+        return Err(FsError::FileNotFound(root.display().to_string()));
+    }
+    if !root.is_dir() {
+        return Err(FsError::InvalidPath(format!(
+            "workspace root is not a directory: {}",
+            root.display()
+        )));
+    }
+
+    root.canonicalize().map_err(FsError::Io)
+}
+
+fn resolve_workspace_relative_path(
+    root: &Path,
+    relative_path: Option<&str>,
+) -> Result<PathBuf, FsError> {
+    let relative = relative_path.unwrap_or_default().trim();
+    if relative.is_empty() {
+        return Ok(root.to_path_buf());
+    }
+
+    let relative_path = Path::new(relative);
+    if relative_path.is_absolute() {
+        return Err(FsError::InvalidRelativePath(relative.to_string()));
+    }
+
+    let candidate = root.join(relative_path);
+    let normalized = candidate.canonicalize().map_err(FsError::Io)?;
+    if !normalized.starts_with(root) {
+        return Err(FsError::OutOfWorkspace(normalized.display().to_string()));
+    }
+    Ok(normalized)
+}
+
+fn relative_path_string(root: &Path, path: &Path) -> Result<String, FsError> {
+    let relative =
+        path.strip_prefix(root).map_err(|_| FsError::OutOfWorkspace(path.display().to_string()))?;
+
+    let segments = relative
+        .components()
+        .map(|segment| segment.as_os_str().to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+
+    Ok(segments.join("/"))
+}
+
+fn is_markdown_file(path: &Path) -> bool {
+    match path.extension().and_then(|ext| ext.to_str()) {
+        Some(ext) => {
+            let lowered = ext.to_ascii_lowercase();
+            lowered == "md" || lowered == "markdown"
+        }
+        None => false,
+    }
+}
+
+fn entry_kind_rank(kind: &WorkspaceEntryKind) -> u8 {
+    match kind {
+        WorkspaceEntryKind::Directory => 0,
+        WorkspaceEntryKind::Markdown => 1,
     }
 }

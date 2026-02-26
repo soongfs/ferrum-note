@@ -38,13 +38,15 @@ describe("runtime capabilities", () => {
     expect(getRuntimeCapabilities("web")).toEqual({
       fileIO: false,
       export: false,
-      fileWatch: false
+      fileWatch: false,
+      workspaceExplorer: false
     });
 
     expect(getRuntimeCapabilities("tauri")).toEqual({
       fileIO: true,
       export: true,
-      fileWatch: true
+      fileWatch: true,
+      workspaceExplorer: true
     });
   });
 

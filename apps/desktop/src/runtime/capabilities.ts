@@ -6,6 +6,7 @@ export type RuntimeCapabilities = {
   fileIO: boolean;
   export: boolean;
   fileWatch: boolean;
+  workspaceExplorer: boolean;
 };
 
 export class DesktopOnlyError extends Error {
@@ -47,13 +48,15 @@ export function getRuntimeCapabilities(mode: RuntimeMode): RuntimeCapabilities {
     return {
       fileIO: true,
       export: true,
-      fileWatch: true
+      fileWatch: true,
+      workspaceExplorer: true
     };
   }
 
   return {
     fileIO: false,
     export: false,
-    fileWatch: false
+    fileWatch: false,
+    workspaceExplorer: false
   };
 }

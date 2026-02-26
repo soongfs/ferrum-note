@@ -8,11 +8,17 @@ import {
   saveFile,
   watchFile
 } from "./api/bridge";
+import { resolveMessages } from "./i18n/messages";
 import { MarkdownEditor } from "./editor/MarkdownEditor";
 import { countMatches, replaceAll, replaceNext } from "./search/ops";
 import type { EditorSyncPayload } from "./types/contracts";
 
-const INITIAL_DOC = `# FerrumNote\n\n开始编辑你的 Markdown 文档。`;
+const INITIAL_DOC = `# FerrumNote\n\nStart writing your Markdown notes.`;
+
+type UiConfigOverrides = {
+  ui_language?: string;
+  show_debug_panels?: boolean;
+};
 
 function App() {
   const [markdown, setMarkdown] = useState(INITIAL_DOC);
@@ -20,15 +26,29 @@ function App() {
   const [pathInput, setPathInput] = useState("");
   const [version, setVersion] = useState(0);
   const [dirty, setDirty] = useState(false);
-  const [status, setStatus] = useState("就绪");
+  const [status, setStatus] = useState("Ready");
   const [autosaveMs, setAutosaveMs] = useState(1500);
   const [query, setQuery] = useState("");
   const [replacement, setReplacement] = useState("");
+  const [uiLanguage, setUiLanguage] = useState("en");
+  const [showDebugPanels, setShowDebugPanels] = useState(false);
   const previousMarkdown = useRef(INITIAL_DOC);
+
+  const messages = useMemo(() => resolveMessages(uiLanguage), [uiLanguage]);
 
   useEffect(() => {
     loadAppConfig()
-      .then((cfg) => setAutosaveMs(cfg.autosave_ms || 1500))
+      .then((cfg) => {
+        setAutosaveMs(cfg.autosave_ms || 1500);
+
+        const optionalConfig = cfg as typeof cfg & UiConfigOverrides;
+        if (optionalConfig.ui_language) {
+          setUiLanguage(optionalConfig.ui_language);
+        }
+        if (optionalConfig.show_debug_panels) {
+          setShowDebugPanels(true);
+        }
+      })
       .catch(() => {
         setAutosaveMs(1500);
       });
@@ -66,7 +86,7 @@ function App() {
 
   async function handleOpen() {
     if (!pathInput.trim()) {
-      setStatus("请输入文件路径后再打开");
+      setStatus(messages.app.enterPathHint);
       return;
     }
 
@@ -78,37 +98,37 @@ function App() {
       setPathInput(file.path);
       setVersion(file.version);
       setDirty(false);
-      setStatus(`已打开: ${file.path}`);
+      setStatus(`Opened: ${file.path}`);
       await watchFile(file.path);
     } catch (error) {
-      setStatus(`打开失败: ${String(error)}`);
+      setStatus(`${messages.app.openFailed}: ${String(error)}`);
     }
   }
 
   async function handleSave() {
     if (!activePath) {
-      setStatus("请先打开文档或使用另存为");
+      setStatus(messages.app.saveNeedFileHint);
       return;
     }
 
     try {
       const saved = await saveFile(activePath, markdown, version);
       if (saved.conflict) {
-        setStatus("保存冲突：文件已被外部修改，请重新加载");
+        setStatus(messages.app.saveConflict);
         return;
       }
 
       setVersion(saved.version);
       setDirty(false);
       previousMarkdown.current = markdown;
-      setStatus(`已保存: ${saved.path}`);
+      setStatus(`Saved: ${saved.path}`);
     } catch (error) {
-      setStatus(`保存失败: ${String(error)}`);
+      setStatus(`${messages.app.saveFailed}: ${String(error)}`);
     }
   }
 
   async function handleSaveAs() {
-    const path = window.prompt("请输入另存为路径", activePath || pathInput || "");
+    const path = window.prompt(messages.app.saveAs, activePath || pathInput || "");
     if (!path || !path.trim()) {
       return;
     }
@@ -120,71 +140,71 @@ function App() {
       setVersion(saved.version);
       setDirty(false);
       previousMarkdown.current = markdown;
-      setStatus(`已另存为: ${saved.path}`);
+      setStatus(`Saved as: ${saved.path}`);
       await watchFile(saved.path);
     } catch (error) {
-      setStatus(`另存为失败: ${String(error)}`);
+      setStatus(`${messages.app.saveAsFailed}: ${String(error)}`);
     }
   }
 
   async function handleExportHtml() {
-    const output = window.prompt("HTML 导出路径", activePath ? `${activePath}.html` : "");
+    const output = window.prompt(messages.app.exportHtml, activePath ? `${activePath}.html` : "");
     if (!output || !output.trim()) {
       return;
     }
 
     try {
       const exported = await exportHtml(output.trim(), markdown);
-      setStatus(`HTML 导出成功: ${exported.output_path}`);
+      setStatus(`HTML exported: ${exported.output_path}`);
     } catch (error) {
-      setStatus(`HTML 导出失败: ${String(error)}`);
+      setStatus(`${messages.app.exportHtmlFailed}: ${String(error)}`);
     }
   }
 
   async function handleExportPdf() {
-    const output = window.prompt("PDF 导出路径", activePath ? `${activePath}.pdf` : "");
+    const output = window.prompt(messages.app.exportPdf, activePath ? `${activePath}.pdf` : "");
     if (!output || !output.trim()) {
       return;
     }
 
     try {
       const exported = await exportPdf(output.trim(), markdown);
-      setStatus(`PDF 导出结果: ${exported.output_path}`);
+      setStatus(`PDF export result: ${exported.output_path}`);
     } catch (error) {
-      setStatus(`PDF 导出失败: ${String(error)}`);
+      setStatus(`${messages.app.exportPdfFailed}: ${String(error)}`);
     }
   }
 
   function handleReplaceNext() {
     if (!query) {
-      setStatus("请输入查找内容");
+      setStatus(messages.app.noReplaceQuery);
       return;
     }
 
     const next = replaceNext(markdown, query, replacement);
     if (next === markdown) {
-      setStatus("没有可替换内容");
+      setStatus(messages.app.noReplaceMatch);
       return;
     }
 
     updateDocument(next);
-    setStatus("已替换下一个匹配项");
+    setStatus(messages.app.replacedNext);
   }
 
   function handleReplaceAll() {
     if (!query) {
-      setStatus("请输入查找内容");
+      setStatus(messages.app.noReplaceQuery);
       return;
     }
 
     const next = replaceAll(markdown, query, replacement);
     if (next === markdown) {
-      setStatus("没有可替换内容");
+      setStatus(messages.app.noReplaceMatch);
       return;
     }
 
     updateDocument(next);
-    setStatus("已执行全部替换");
+    setStatus(messages.app.replacedAll);
   }
 
   useEffect(() => {
@@ -196,103 +216,126 @@ function App() {
       try {
         const saved = await saveFile(activePath, markdown, version);
         if (saved.conflict) {
-          setStatus("自动保存冲突：文件被外部修改");
+          setStatus(messages.app.autosaveConflict);
           return;
         }
 
         setVersion(saved.version);
         setDirty(false);
         previousMarkdown.current = markdown;
-        setStatus(`自动保存成功 (${new Date().toLocaleTimeString()})`);
+        setStatus(`Autosaved at ${new Date().toLocaleTimeString()}`);
       } catch (error) {
-        setStatus(`自动保存失败: ${String(error)}`);
+        setStatus(`${messages.app.autosaveFailed}: ${String(error)}`);
       }
     }, autosaveMs);
 
     return () => window.clearTimeout(timer);
-  }, [activePath, autosaveMs, dirty, markdown, version]);
+  }, [activePath, autosaveMs, dirty, markdown, messages.app.autosaveConflict, messages.app.autosaveFailed, version]);
 
   return (
     <main className="app-shell">
-      <header className="app-header">
-        <h1>FerrumNote</h1>
-        <p>Rust + Tauri + TipTap Markdown Editor</p>
+      <header className="hero-panel">
+        <div>
+          <p className="hero-eyebrow">Markdown Desktop Workspace</p>
+          <h1>{messages.app.title}</h1>
+          <p className="hero-subtitle">{messages.app.subtitle}</p>
+        </div>
+        <div className="hero-status-chip">{dirty ? "Unsaved changes" : messages.app.ready}</div>
       </header>
 
-      <section className="file-bar">
-        <input
-          className="path-input"
-          value={pathInput}
-          onChange={(event) => setPathInput(event.target.value)}
-          placeholder="输入 .md 文件路径，例如 /home/user/notes/today.md"
-        />
-        <button type="button" onClick={handleOpen}>
-          打开
-        </button>
-        <button type="button" onClick={handleSave}>
-          保存
-        </button>
-        <button type="button" onClick={handleSaveAs}>
-          另存为
+      <section className="control-panel">
+        <div className="control-row">
+          <input
+            className="path-input"
+            value={pathInput}
+            onChange={(event) => setPathInput(event.target.value)}
+            placeholder={messages.app.filePathPlaceholder}
+          />
+          <button className="action-button" type="button" onClick={handleOpen}>
+            {messages.app.open}
+          </button>
+          <button className="action-button" type="button" onClick={handleSave}>
+            {messages.app.save}
+          </button>
+          <button className="secondary-button" type="button" onClick={handleSaveAs}>
+            {messages.app.saveAs}
+          </button>
+        </div>
+
+        <div className="control-row split-row">
+          <div className="split-actions">
+            <button className="action-button" type="button" onClick={handleExportHtml}>
+              {messages.app.exportHtml}
+            </button>
+            <button className="action-button" type="button" onClick={handleExportPdf}>
+              {messages.app.exportPdf}
+            </button>
+          </div>
+          <div className="split-actions">
+            <input
+              className="text-input"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={messages.app.searchPlaceholder}
+            />
+            <input
+              className="text-input"
+              value={replacement}
+              onChange={(event) => setReplacement(event.target.value)}
+              placeholder={messages.app.replacePlaceholder}
+            />
+            <button className="secondary-button" type="button" onClick={handleReplaceNext}>
+              {messages.app.replaceNext}
+            </button>
+            <button className="secondary-button" type="button" onClick={handleReplaceAll}>
+              {messages.app.replaceAll}
+            </button>
+            <span className="match-counter">
+              {messages.app.matches}: {matchCount}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="editor-panel">
+        <MarkdownEditor value={markdown} onChange={updateDocument} labels={messages.editor} />
+      </section>
+
+      <section className="status-grid">
+        <article className="status-card">
+          <h2>{messages.app.status}</h2>
+          <p>{status}</p>
+        </article>
+        <article className="status-card">
+          <h2>{messages.app.path}</h2>
+          <p>{activePath || messages.app.unopened}</p>
+        </article>
+        <article className="status-card">
+          <h2>{messages.app.version}</h2>
+          <p>{version}</p>
+        </article>
+        <article className="status-card">
+          <h2>{messages.app.autosave}</h2>
+          <p>{autosaveMs} ms</p>
+        </article>
+      </section>
+
+      <section className="debug-panel-toggle">
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={() => setShowDebugPanels((current) => !current)}
+        >
+          {messages.app.debugToggle}
         </button>
       </section>
 
-      <section className="export-bar">
-        <button type="button" onClick={handleExportHtml}>
-          导出 HTML
-        </button>
-        <button type="button" onClick={handleExportPdf}>
-          导出 PDF
-        </button>
-      </section>
-
-      <section className="search-bar">
-        <input
-          className="search-input"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="查找"
-        />
-        <input
-          className="search-input"
-          value={replacement}
-          onChange={(event) => setReplacement(event.target.value)}
-          placeholder="替换为"
-        />
-        <button type="button" onClick={handleReplaceNext}>
-          替换下一个
-        </button>
-        <button type="button" onClick={handleReplaceAll}>
-          全部替换
-        </button>
-        <span className="search-meta">匹配: {matchCount}</span>
-      </section>
-
-      <MarkdownEditor value={markdown} onChange={updateDocument} />
-
-      <section className="status-panel">
-        <p>
-          <strong>状态：</strong>
-          {status}
-        </p>
-        <p>
-          <strong>路径：</strong>
-          {activePath || "未打开"}
-        </p>
-        <p>
-          <strong>版本：</strong>
-          {version}
-        </p>
-        <p>
-          <strong>自动保存：</strong>
-          {autosaveMs}ms
-        </p>
-      </section>
-
-      <section className="markdown-preview-panel">
-        <h2>EditorSyncPayload</h2>
-        <pre>{JSON.stringify(syncPayload, null, 2)}</pre>
-      </section>
+      {showDebugPanels ? (
+        <section className="debug-panel">
+          <h2>{messages.app.debugPayloadTitle}</h2>
+          <pre>{JSON.stringify(syncPayload, null, 2)}</pre>
+        </section>
+      ) : null}
     </main>
   );
 }

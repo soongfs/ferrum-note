@@ -7,9 +7,26 @@ import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
 import { createMarkdownCodec } from "./markdownCodec";
 
+type EditorLabels = {
+  placeholder: string;
+  loading: string;
+  bold: string;
+  italic: string;
+  heading: string;
+  quote: string;
+  codeBlock: string;
+  bulletList: string;
+  orderedList: string;
+  undo: string;
+  redo: string;
+  language: string;
+  shortcutHint: string;
+};
+
 type MarkdownEditorProps = {
   value: string;
   onChange: (next: string) => void;
+  labels: EditorLabels;
 };
 
 function ToolbarButton({
@@ -35,7 +52,7 @@ function ToolbarButton({
   );
 }
 
-export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
+export function MarkdownEditor({ value, onChange, labels }: MarkdownEditorProps) {
   const applyingExternalUpdate = useRef(false);
   const [codeLanguage, setCodeLanguage] = useState("plaintext");
   const lowlight = useMemo(() => createLowlight(common), []);
@@ -49,7 +66,7 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
         lowlight
       }),
       Link.configure({ openOnClick: false }),
-      Placeholder.configure({ placeholder: "开始输入 Markdown 内容..." })
+      Placeholder.configure({ placeholder: labels.placeholder })
     ],
     content: "<p></p>",
     onCreate({ editor: instance }) {
@@ -100,34 +117,34 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
   }, [editor]);
 
   if (!editor) {
-    return <div className="editor-loading">编辑器加载中...</div>;
+    return <div className="editor-loading">{labels.loading}</div>;
   }
 
   return (
     <section className="editor-shell">
       <div className="editor-toolbar" aria-label="文本工具栏">
         <ToolbarButton
-          label="粗体"
+          label={labels.bold}
           onClick={() => editor.chain().focus().toggleBold().run()}
           active={editor.isActive("bold")}
         />
         <ToolbarButton
-          label="斜体"
+          label={labels.italic}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           active={editor.isActive("italic")}
         />
         <ToolbarButton
-          label="标题"
+          label={labels.heading}
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           active={editor.isActive("heading", { level: 2 })}
         />
         <ToolbarButton
-          label="引用"
+          label={labels.quote}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           active={editor.isActive("blockquote")}
         />
         <ToolbarButton
-          label="代码块"
+          label={labels.codeBlock}
           onClick={() =>
             editor
               .chain()
@@ -140,7 +157,7 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
           active={editor.isActive("codeBlock")}
         />
         <label className="code-language-select-label">
-          语言
+          {labels.language}
           <select
             className="code-language-select"
             value={codeLanguage}
@@ -155,28 +172,28 @@ export function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
           </select>
         </label>
         <ToolbarButton
-          label="无序列表"
+          label={labels.bulletList}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           active={editor.isActive("bulletList")}
         />
         <ToolbarButton
-          label="有序列表"
+          label={labels.orderedList}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           active={editor.isActive("orderedList")}
         />
         <ToolbarButton
-          label="撤销"
+          label={labels.undo}
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
         />
         <ToolbarButton
-          label="重做"
+          label={labels.redo}
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
         />
       </div>
       <EditorContent className="editor-content" editor={editor} />
-      <p className="editor-shortcut-hint">快捷键：Ctrl/Cmd+B 粗体，Ctrl/Cmd+I 斜体，Ctrl/Cmd+Z 撤销。</p>
+      <p className="editor-shortcut-hint">{labels.shortcutHint}</p>
     </section>
   );
 }

@@ -1,0 +1,33 @@
+:root {
+  --font-ui: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "Cascadia Mono", "JetBrains Mono", Menlo, monospace;
+
+  --bg-main: #eef2f7;
+  --bg-surface: #ffffff;
+  --bg-muted: #f6f8fc;
+  --bg-soft: #edf3fa;
+
+  --ink-strong: #182131;
+  --ink-normal: #2b3a50;
+  --ink-muted: #61708a;
+
+  --brand-500: #1368d4;
+  --brand-600: #0c54af;
+  --brand-100: #dce9fb;
+
+  --success-500: #0f8d53;
+  --warning-500: #cf5f1a;
+
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+
+  --space-1: 6px;
+  --space-2: 10px;
+  --space-3: 14px;
+  --space-4: 18px;
+  --space-5: 24px;
+
+  --shadow-soft: 0 18px 45px rgba(16, 32, 56, 0.08);
+  --shadow-card: 0 8px 24px rgba(16, 32, 56, 0.05);
+}

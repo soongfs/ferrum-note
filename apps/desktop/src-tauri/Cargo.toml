@@ -1,0 +1,26 @@
+[package]
+name = "ferrumnote-desktop"
+version = "0.1.0-alpha.1"
+description = "FerrumNote desktop app"
+authors = ["FerrumNote Team"]
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "ferrumnote_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tauri = { version = "2", features = [] }
+fn-core = { path = "../../../crates/fn-core" }
+fn-fs = { path = "../../../crates/fn-fs" }
+fn-export = { path = "../../../crates/fn-export" }
+fn-config = { path = "../../../crates/fn-config" }

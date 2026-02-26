@@ -1,0 +1,43 @@
+:root {
+  font-family: "Noto Sans SC", "Source Han Sans SC", sans-serif;
+  color: #18202a;
+  background: radial-gradient(circle at top left, #eef5ff 0%, #f6f8fb 45%, #fbfcff 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  margin: 0 auto;
+  max-width: 980px;
+  padding: 32px 20px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 40px;
+}
+
+.app-header p {
+  margin-top: 8px;
+  color: #42546a;
+}
+
+.app-placeholder {
+  margin-top: 24px;
+  border-radius: 14px;
+  border: 1px solid #d8e2f0;
+  background: #ffffffcc;
+  padding: 20px;
+  font-size: 16px;
+}

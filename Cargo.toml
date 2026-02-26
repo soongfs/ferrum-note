@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+  "apps/desktop/src-tauri",
+  "crates/fn-core",
+  "crates/fn-fs",
+  "crates/fn-export",
+  "crates/fn-config"
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+version = "0.1.0-alpha.1"
+authors = ["FerrumNote Team"]
+
+[workspace.dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tracing = "0.1"

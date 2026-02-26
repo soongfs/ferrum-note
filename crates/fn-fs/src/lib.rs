@@ -192,10 +192,7 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<u64, FsError> {
                 fs::rename(&tmp_path, path)?;
                 Ok(bytes.len() as u64)
             } else {
-                Err(FsError::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "atomic rename failed",
-                )))
+                Err(FsError::Io(std::io::Error::other("atomic rename failed")))
             }
         }
     }

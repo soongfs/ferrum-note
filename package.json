@@ -1,0 +1,14 @@
+{
+  "name": "ferrumnote-root",
+  "private": true,
+  "version": "0.1.0-alpha.1",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "prepare": "bash scripts/setup-git-hooks.sh",
+    "commitlint": "commitlint --from HEAD~1 --to HEAD"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.4.0",
+    "@commitlint/config-conventional": "^19.4.0"
+  }
+}

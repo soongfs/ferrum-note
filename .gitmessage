@@ -1,0 +1,10 @@
+<type>(<scope>): <imperative summary under 72 chars>
+
+Why
+- Explain motivation.
+
+What
+- Explain key changes.
+
+Test
+- Describe how this was validated.

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadAppConfig, openFile, saveAsFile, saveFile, watchFile } from "./api/bridge";
 import { MarkdownEditor } from "./editor/MarkdownEditor";
+import { countMatches, replaceAll, replaceNext } from "./search/ops";
 import type { EditorSyncPayload } from "./types/contracts";
 
 const INITIAL_DOC = `# FerrumNote\n\n开始编辑你的 Markdown 文档。`;
@@ -13,6 +14,8 @@ function App() {
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState("就绪");
   const [autosaveMs, setAutosaveMs] = useState(1500);
+  const [query, setQuery] = useState("");
+  const [replacement, setReplacement] = useState("");
   const previousMarkdown = useRef(INITIAL_DOC);
 
   useEffect(() => {
@@ -38,6 +41,8 @@ function App() {
     return changed;
   }, [markdown]);
 
+  const matchCount = useMemo(() => countMatches(markdown, query), [markdown, query]);
+
   const syncPayload: EditorSyncPayload = {
     doc_id: activePath || "untitled",
     markdown,
@@ -45,6 +50,11 @@ function App() {
     dirty,
     changed_blocks: changedBlocks
   };
+
+  function updateDocument(next: string) {
+    setMarkdown(next);
+    setDirty(true);
+  }
 
   async function handleOpen() {
     if (!pathInput.trim()) {
@@ -109,6 +119,38 @@ function App() {
     }
   }
 
+  function handleReplaceNext() {
+    if (!query) {
+      setStatus("请输入查找内容");
+      return;
+    }
+
+    const next = replaceNext(markdown, query, replacement);
+    if (next === markdown) {
+      setStatus("没有可替换内容");
+      return;
+    }
+
+    updateDocument(next);
+    setStatus("已替换下一个匹配项");
+  }
+
+  function handleReplaceAll() {
+    if (!query) {
+      setStatus("请输入查找内容");
+      return;
+    }
+
+    const next = replaceAll(markdown, query, replacement);
+    if (next === markdown) {
+      setStatus("没有可替换内容");
+      return;
+    }
+
+    updateDocument(next);
+    setStatus("已执行全部替换");
+  }
+
   useEffect(() => {
     if (!activePath || !dirty) {
       return;
@@ -159,13 +201,29 @@ function App() {
         </button>
       </section>
 
-      <MarkdownEditor
-        value={markdown}
-        onChange={(next) => {
-          setMarkdown(next);
-          setDirty(true);
-        }}
-      />
+      <section className="search-bar">
+        <input
+          className="search-input"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="查找"
+        />
+        <input
+          className="search-input"
+          value={replacement}
+          onChange={(event) => setReplacement(event.target.value)}
+          placeholder="替换为"
+        />
+        <button type="button" onClick={handleReplaceNext}>
+          替换下一个
+        </button>
+        <button type="button" onClick={handleReplaceAll}>
+          全部替换
+        </button>
+        <span className="search-meta">匹配: {matchCount}</span>
+      </section>
+
+      <MarkdownEditor value={markdown} onChange={updateDocument} />
 
       <section className="status-panel">
         <p>

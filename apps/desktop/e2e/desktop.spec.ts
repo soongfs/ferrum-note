@@ -10,11 +10,11 @@ test.describe("FerrumNote web mode", () => {
       })
     ).toBeVisible();
 
-    await expect(page.getByRole("button", { name: "Open" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Save" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Save As" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Export HTML" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Export PDF" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Open", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Save As", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Export HTML", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Export PDF", exact: true })).toBeDisabled();
   });
 
   test("keeps search and replace available in browser mode", async ({ page }) => {

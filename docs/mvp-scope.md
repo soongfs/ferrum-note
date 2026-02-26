@@ -8,6 +8,9 @@
 - Autosave (default 1500ms)
 - HTML/PDF export
 - Cross-platform packaging (Windows/macOS/Linux)
+- Runtime capability split:
+  - `tauri` mode: full desktop features (file IO/export/watch)
+  - `web` mode: editing/search/replace only, desktop-only actions disabled with notice
 
 ## Out of Scope
 - Cloud sync
@@ -20,3 +23,4 @@
 - Round-trip keeps heading/list/blockquote/code/link semantics
 - Conflict detection when file changes externally
 - Exported HTML/PDF preserves structure and code blocks
+- Browser mode (`pnpm dev`) does not call desktop-only commands and clearly shows degraded capabilities

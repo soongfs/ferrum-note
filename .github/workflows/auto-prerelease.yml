@@ -127,6 +127,7 @@ jobs:
         with:
           name: tauri-prerelease-bundle-${{ matrix.os }}
           path: |
+            target/release/bundle/**
             apps/desktop/src-tauri/target/release/bundle/**
           if-no-files-found: error
 

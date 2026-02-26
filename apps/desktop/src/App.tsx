@@ -1,10 +1,138 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { loadAppConfig, openFile, saveAsFile, saveFile, watchFile } from "./api/bridge";
 import { MarkdownEditor } from "./editor/MarkdownEditor";
+import type { EditorSyncPayload } from "./types/contracts";
 
-const INITIAL_DOC = `# FerrumNote\n\n这是一个 Typora 风格编辑器 MVP。\n\n- 支持实时编辑\n- 支持列表与代码块\n\n\`\`\`rust\nfn main() {\n    println!(\"hello\");\n}\n\`\`\``;
+const INITIAL_DOC = `# FerrumNote\n\n开始编辑你的 Markdown 文档。`;
 
 function App() {
   const [markdown, setMarkdown] = useState(INITIAL_DOC);
+  const [activePath, setActivePath] = useState("");
+  const [pathInput, setPathInput] = useState("");
+  const [version, setVersion] = useState(0);
+  const [dirty, setDirty] = useState(false);
+  const [status, setStatus] = useState("就绪");
+  const [autosaveMs, setAutosaveMs] = useState(1500);
+  const previousMarkdown = useRef(INITIAL_DOC);
+
+  useEffect(() => {
+    loadAppConfig()
+      .then((cfg) => setAutosaveMs(cfg.autosave_ms || 1500))
+      .catch(() => {
+        setAutosaveMs(1500);
+      });
+  }, []);
+
+  const changedBlocks = useMemo(() => {
+    const prev = previousMarkdown.current.split("\n\n");
+    const next = markdown.split("\n\n");
+    const size = Math.max(prev.length, next.length);
+    const changed: string[] = [];
+
+    for (let i = 0; i < size; i += 1) {
+      if ((prev[i] || "") !== (next[i] || "")) {
+        changed.push(`block-${i + 1}`);
+      }
+    }
+
+    return changed;
+  }, [markdown]);
+
+  const syncPayload: EditorSyncPayload = {
+    doc_id: activePath || "untitled",
+    markdown,
+    version,
+    dirty,
+    changed_blocks: changedBlocks
+  };
+
+  async function handleOpen() {
+    if (!pathInput.trim()) {
+      setStatus("请输入文件路径后再打开");
+      return;
+    }
+
+    try {
+      const file = await openFile(pathInput.trim());
+      setMarkdown(file.content);
+      previousMarkdown.current = file.content;
+      setActivePath(file.path);
+      setPathInput(file.path);
+      setVersion(file.version);
+      setDirty(false);
+      setStatus(`已打开: ${file.path}`);
+      await watchFile(file.path);
+    } catch (error) {
+      setStatus(`打开失败: ${String(error)}`);
+    }
+  }
+
+  async function handleSave() {
+    if (!activePath) {
+      setStatus("请先打开文档或使用另存为");
+      return;
+    }
+
+    try {
+      const saved = await saveFile(activePath, markdown, version);
+      if (saved.conflict) {
+        setStatus("保存冲突：文件已被外部修改，请重新加载");
+        return;
+      }
+
+      setVersion(saved.version);
+      setDirty(false);
+      previousMarkdown.current = markdown;
+      setStatus(`已保存: ${saved.path}`);
+    } catch (error) {
+      setStatus(`保存失败: ${String(error)}`);
+    }
+  }
+
+  async function handleSaveAs() {
+    const path = window.prompt("请输入另存为路径", activePath || pathInput || "");
+    if (!path || !path.trim()) {
+      return;
+    }
+
+    try {
+      const saved = await saveAsFile(path.trim(), markdown);
+      setActivePath(saved.path);
+      setPathInput(saved.path);
+      setVersion(saved.version);
+      setDirty(false);
+      previousMarkdown.current = markdown;
+      setStatus(`已另存为: ${saved.path}`);
+      await watchFile(saved.path);
+    } catch (error) {
+      setStatus(`另存为失败: ${String(error)}`);
+    }
+  }
+
+  useEffect(() => {
+    if (!activePath || !dirty) {
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const saved = await saveFile(activePath, markdown, version);
+        if (saved.conflict) {
+          setStatus("自动保存冲突：文件被外部修改");
+          return;
+        }
+
+        setVersion(saved.version);
+        setDirty(false);
+        previousMarkdown.current = markdown;
+        setStatus(`自动保存成功 (${new Date().toLocaleTimeString()})`);
+      } catch (error) {
+        setStatus(`自动保存失败: ${String(error)}`);
+      }
+    }, autosaveMs);
+
+    return () => window.clearTimeout(timer);
+  }, [activePath, autosaveMs, dirty, markdown, version]);
 
   return (
     <main className="app-shell">
@@ -12,10 +140,55 @@ function App() {
         <h1>FerrumNote</h1>
         <p>Rust + Tauri + TipTap Markdown Editor</p>
       </header>
-      <MarkdownEditor value={markdown} onChange={setMarkdown} />
+
+      <section className="file-bar">
+        <input
+          className="path-input"
+          value={pathInput}
+          onChange={(event) => setPathInput(event.target.value)}
+          placeholder="输入 .md 文件路径，例如 /home/user/notes/today.md"
+        />
+        <button type="button" onClick={handleOpen}>
+          打开
+        </button>
+        <button type="button" onClick={handleSave}>
+          保存
+        </button>
+        <button type="button" onClick={handleSaveAs}>
+          另存为
+        </button>
+      </section>
+
+      <MarkdownEditor
+        value={markdown}
+        onChange={(next) => {
+          setMarkdown(next);
+          setDirty(true);
+        }}
+      />
+
+      <section className="status-panel">
+        <p>
+          <strong>状态：</strong>
+          {status}
+        </p>
+        <p>
+          <strong>路径：</strong>
+          {activePath || "未打开"}
+        </p>
+        <p>
+          <strong>版本：</strong>
+          {version}
+        </p>
+        <p>
+          <strong>自动保存：</strong>
+          {autosaveMs}ms
+        </p>
+      </section>
+
       <section className="markdown-preview-panel">
-        <h2>Markdown Snapshot</h2>
-        <pre>{markdown}</pre>
+        <h2>EditorSyncPayload</h2>
+        <pre>{JSON.stringify(syncPayload, null, 2)}</pre>
       </section>
     </main>
   );

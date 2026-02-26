@@ -14,6 +14,12 @@ sudo apt-get install -y \
   librsvg2-dev
 ```
 
+Arch Linux equivalent:
+
+```bash
+sudo pacman -S --needed pkgconf gtk3 webkit2gtk-4.1 libayatana-appindicator librsvg
+```
+
 Verify:
 
 ```bash
@@ -66,3 +72,29 @@ pnpm dev
 This is expected behavior. Browser mode is capability-degraded by design:
 - Available: Markdown editing, find/replace, local status rendering
 - Disabled: open/save/save-as/export/watch (desktop-only commands)
+
+## 6. Playwright e2e Fails With Missing Shared Libraries
+
+Typical error:
+- `error while loading shared libraries: libasound.so.2`
+- `error while loading shared libraries: libnspr4.so`
+
+Install missing runtime packages:
+
+Ubuntu/Debian:
+
+```bash
+sudo apt-get install -y libasound2 libnspr4 libnss3
+```
+
+Arch Linux:
+
+```bash
+sudo pacman -S --needed alsa-lib nspr nss
+```
+
+To inspect all unresolved libraries:
+
+```bash
+ldd ~/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell | rg "not found"
+```

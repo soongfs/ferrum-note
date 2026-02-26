@@ -11,14 +11,14 @@ import {
 import { resolveMessages } from "./i18n/messages";
 import { MarkdownEditor } from "./editor/MarkdownEditor";
 import { countMatches, replaceAll, replaceNext } from "./search/ops";
+import {
+  DesktopOnlyError,
+  detectRuntimeMode,
+  getRuntimeCapabilities
+} from "./runtime/capabilities";
 import type { EditorSyncPayload } from "./types/contracts";
 
 const INITIAL_DOC = `# FerrumNote\n\nStart writing your Markdown notes.`;
-
-type UiConfigOverrides = {
-  ui_language?: string;
-  show_debug_panels?: boolean;
-};
 
 function App() {
   const [markdown, setMarkdown] = useState(INITIAL_DOC);
@@ -34,20 +34,16 @@ function App() {
   const [showDebugPanels, setShowDebugPanels] = useState(false);
   const previousMarkdown = useRef(INITIAL_DOC);
 
+  const runtimeMode = useMemo(() => detectRuntimeMode(), []);
+  const runtimeCapabilities = useMemo(() => getRuntimeCapabilities(runtimeMode), [runtimeMode]);
   const messages = useMemo(() => resolveMessages(uiLanguage), [uiLanguage]);
 
   useEffect(() => {
     loadAppConfig()
       .then((cfg) => {
         setAutosaveMs(cfg.autosave_ms || 1500);
-
-        const optionalConfig = cfg as typeof cfg & UiConfigOverrides;
-        if (optionalConfig.ui_language) {
-          setUiLanguage(optionalConfig.ui_language);
-        }
-        if (optionalConfig.show_debug_panels) {
-          setShowDebugPanels(true);
-        }
+        setUiLanguage(cfg.ui_language || "en");
+        setShowDebugPanels(Boolean(cfg.show_debug_panels));
       })
       .catch(() => {
         setAutosaveMs(1500);
@@ -84,7 +80,19 @@ function App() {
     setDirty(true);
   }
 
+  function toStatus(errorPrefix: string, error: unknown): string {
+    if (error instanceof DesktopOnlyError) {
+      return error.message;
+    }
+    return `${errorPrefix}: ${String(error)}`;
+  }
+
   async function handleOpen() {
+    if (!runtimeCapabilities.fileIO) {
+      setStatus(messages.app.desktopModeNotice);
+      return;
+    }
+
     if (!pathInput.trim()) {
       setStatus(messages.app.enterPathHint);
       return;
@@ -99,13 +107,20 @@ function App() {
       setVersion(file.version);
       setDirty(false);
       setStatus(`Opened: ${file.path}`);
-      await watchFile(file.path);
+      if (runtimeCapabilities.fileWatch) {
+        await watchFile(file.path);
+      }
     } catch (error) {
-      setStatus(`${messages.app.openFailed}: ${String(error)}`);
+      setStatus(toStatus(messages.app.openFailed, error));
     }
   }
 
   async function handleSave() {
+    if (!runtimeCapabilities.fileIO) {
+      setStatus(messages.app.desktopModeNotice);
+      return;
+    }
+
     if (!activePath) {
       setStatus(messages.app.saveNeedFileHint);
       return;
@@ -123,11 +138,16 @@ function App() {
       previousMarkdown.current = markdown;
       setStatus(`Saved: ${saved.path}`);
     } catch (error) {
-      setStatus(`${messages.app.saveFailed}: ${String(error)}`);
+      setStatus(toStatus(messages.app.saveFailed, error));
     }
   }
 
   async function handleSaveAs() {
+    if (!runtimeCapabilities.fileIO) {
+      setStatus(messages.app.desktopModeNotice);
+      return;
+    }
+
     const path = window.prompt(messages.app.saveAs, activePath || pathInput || "");
     if (!path || !path.trim()) {
       return;
@@ -141,13 +161,20 @@ function App() {
       setDirty(false);
       previousMarkdown.current = markdown;
       setStatus(`Saved as: ${saved.path}`);
-      await watchFile(saved.path);
+      if (runtimeCapabilities.fileWatch) {
+        await watchFile(saved.path);
+      }
     } catch (error) {
-      setStatus(`${messages.app.saveAsFailed}: ${String(error)}`);
+      setStatus(toStatus(messages.app.saveAsFailed, error));
     }
   }
 
   async function handleExportHtml() {
+    if (!runtimeCapabilities.export) {
+      setStatus(messages.app.desktopModeNotice);
+      return;
+    }
+
     const output = window.prompt(messages.app.exportHtml, activePath ? `${activePath}.html` : "");
     if (!output || !output.trim()) {
       return;
@@ -157,11 +184,16 @@ function App() {
       const exported = await exportHtml(output.trim(), markdown);
       setStatus(`HTML exported: ${exported.output_path}`);
     } catch (error) {
-      setStatus(`${messages.app.exportHtmlFailed}: ${String(error)}`);
+      setStatus(toStatus(messages.app.exportHtmlFailed, error));
     }
   }
 
   async function handleExportPdf() {
+    if (!runtimeCapabilities.export) {
+      setStatus(messages.app.desktopModeNotice);
+      return;
+    }
+
     const output = window.prompt(messages.app.exportPdf, activePath ? `${activePath}.pdf` : "");
     if (!output || !output.trim()) {
       return;
@@ -171,7 +203,7 @@ function App() {
       const exported = await exportPdf(output.trim(), markdown);
       setStatus(`PDF export result: ${exported.output_path}`);
     } catch (error) {
-      setStatus(`${messages.app.exportPdfFailed}: ${String(error)}`);
+      setStatus(toStatus(messages.app.exportPdfFailed, error));
     }
   }
 
@@ -208,7 +240,7 @@ function App() {
   }
 
   useEffect(() => {
-    if (!activePath || !dirty) {
+    if (!runtimeCapabilities.fileIO || !activePath || !dirty) {
       return;
     }
 
@@ -225,12 +257,21 @@ function App() {
         previousMarkdown.current = markdown;
         setStatus(`Autosaved at ${new Date().toLocaleTimeString()}`);
       } catch (error) {
-        setStatus(`${messages.app.autosaveFailed}: ${String(error)}`);
+        setStatus(toStatus(messages.app.autosaveFailed, error));
       }
     }, autosaveMs);
 
     return () => window.clearTimeout(timer);
-  }, [activePath, autosaveMs, dirty, markdown, messages.app.autosaveConflict, messages.app.autosaveFailed, version]);
+  }, [
+    activePath,
+    autosaveMs,
+    dirty,
+    markdown,
+    messages.app.autosaveConflict,
+    messages.app.autosaveFailed,
+    runtimeCapabilities.fileIO,
+    version
+  ]);
 
   return (
     <main className="app-shell">
@@ -243,6 +284,8 @@ function App() {
         <div className="hero-status-chip">{dirty ? "Unsaved changes" : messages.app.ready}</div>
       </header>
 
+      {runtimeMode === "web" ? <section className="runtime-banner">{messages.app.desktopModeNotice}</section> : null}
+
       <section className="control-panel">
         <div className="control-row">
           <input
@@ -250,24 +293,50 @@ function App() {
             value={pathInput}
             onChange={(event) => setPathInput(event.target.value)}
             placeholder={messages.app.filePathPlaceholder}
+            disabled={!runtimeCapabilities.fileIO}
           />
-          <button className="action-button" type="button" onClick={handleOpen}>
+          <button
+            className="action-button"
+            type="button"
+            onClick={handleOpen}
+            disabled={!runtimeCapabilities.fileIO}
+          >
             {messages.app.open}
           </button>
-          <button className="action-button" type="button" onClick={handleSave}>
+          <button
+            className="action-button"
+            type="button"
+            onClick={handleSave}
+            disabled={!runtimeCapabilities.fileIO}
+          >
             {messages.app.save}
           </button>
-          <button className="secondary-button" type="button" onClick={handleSaveAs}>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={handleSaveAs}
+            disabled={!runtimeCapabilities.fileIO}
+          >
             {messages.app.saveAs}
           </button>
         </div>
 
         <div className="control-row split-row">
           <div className="split-actions">
-            <button className="action-button" type="button" onClick={handleExportHtml}>
+            <button
+              className="action-button"
+              type="button"
+              onClick={handleExportHtml}
+              disabled={!runtimeCapabilities.export}
+            >
               {messages.app.exportHtml}
             </button>
-            <button className="action-button" type="button" onClick={handleExportPdf}>
+            <button
+              className="action-button"
+              type="button"
+              onClick={handleExportPdf}
+              disabled={!runtimeCapabilities.export}
+            >
               {messages.app.exportPdf}
             </button>
           </div>

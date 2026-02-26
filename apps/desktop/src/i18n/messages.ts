@@ -17,6 +17,7 @@ export type UiMessages = {
     path: string;
     version: string;
     autosave: string;
+    desktopModeNotice: string;
     debugToggle: string;
     debugPayloadTitle: string;
     enterPathHint: string;
@@ -72,6 +73,8 @@ export const en: UiMessages = {
     path: "Path",
     version: "Version",
     autosave: "Autosave",
+    desktopModeNotice:
+      "Desktop-only features are disabled in browser mode. Use `pnpm tauri dev` for full file and export functions.",
     debugToggle: "Show Debug Payload",
     debugPayloadTitle: "Editor Sync Payload",
     enterPathHint: "Enter a file path first.",
@@ -127,6 +130,7 @@ export const zhCN: UiMessages = {
     path: "路径",
     version: "版本",
     autosave: "自动保存",
+    desktopModeNotice: "浏览器模式下已禁用桌面专属功能，请使用 `pnpm tauri dev`。",
     debugToggle: "显示调试载荷",
     debugPayloadTitle: "编辑器同步载荷",
     enterPathHint: "请先输入路径。",

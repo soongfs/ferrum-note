@@ -6,8 +6,24 @@ import type {
   SaveFileResponse,
   WatchStartedResponse
 } from "../types/contracts";
+import {
+  DesktopOnlyError,
+  WEB_DEFAULT_CONFIG,
+  detectRuntimeMode,
+  getRuntimeCapabilities
+} from "../runtime/capabilities";
+
+function ensureCapability(capability: keyof ReturnType<typeof getRuntimeCapabilities>, feature: string) {
+  const runtimeMode = detectRuntimeMode();
+  const runtimeCapabilities = getRuntimeCapabilities(runtimeMode);
+
+  if (!runtimeCapabilities[capability]) {
+    throw new DesktopOnlyError(feature);
+  }
+}
 
 export async function openFile(path: string): Promise<OpenFileResponse> {
+  ensureCapability("fileIO", "open file");
   return invoke<OpenFileResponse>("open_file", { path });
 }
 
@@ -16,6 +32,7 @@ export async function saveFile(
   content: string,
   expectedVersion: number
 ): Promise<SaveFileResponse> {
+  ensureCapability("fileIO", "save file");
   return invoke<SaveFileResponse>("save_file", {
     path,
     content,
@@ -24,6 +41,7 @@ export async function saveFile(
 }
 
 export async function saveAsFile(path: string, content: string): Promise<SaveFileResponse> {
+  ensureCapability("fileIO", "save file as");
   return invoke<SaveFileResponse>("save_as_file", {
     path,
     content
@@ -31,17 +49,23 @@ export async function saveAsFile(path: string, content: string): Promise<SaveFil
 }
 
 export async function exportHtml(path: string, content: string): Promise<ExportResponse> {
+  ensureCapability("export", "export html");
   return invoke<ExportResponse>("export_html", { path, content });
 }
 
 export async function exportPdf(path: string, content: string): Promise<ExportResponse> {
+  ensureCapability("export", "export pdf");
   return invoke<ExportResponse>("export_pdf", { path, content });
 }
 
 export async function watchFile(path: string): Promise<WatchStartedResponse> {
+  ensureCapability("fileWatch", "watch file");
   return invoke<WatchStartedResponse>("watch_file", { path });
 }
 
 export async function loadAppConfig(): Promise<AppConfig> {
+  if (detectRuntimeMode() === "web") {
+    return WEB_DEFAULT_CONFIG;
+  }
   return invoke<AppConfig>("load_app_config");
 }

@@ -36,4 +36,6 @@ export type AppConfig = {
   font_size: number;
   recent_files_limit: number;
   line_width_hint: number;
+  ui_language: string;
+  show_debug_panels: boolean;
 };

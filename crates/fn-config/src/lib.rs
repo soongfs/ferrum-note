@@ -11,6 +11,8 @@ pub struct AppConfig {
     pub font_size: u16,
     pub recent_files_limit: usize,
     pub line_width_hint: u16,
+    pub ui_language: String,
+    pub show_debug_panels: bool,
 }
 
 impl Default for AppConfig {
@@ -21,6 +23,8 @@ impl Default for AppConfig {
             font_size: 16,
             recent_files_limit: 20,
             line_width_hint: 88,
+            ui_language: "en".to_string(),
+            show_debug_panels: false,
         }
     }
 }
@@ -32,6 +36,8 @@ struct PartialConfig {
     font_size: Option<u16>,
     recent_files_limit: Option<usize>,
     line_width_hint: Option<u16>,
+    ui_language: Option<String>,
+    show_debug_panels: Option<bool>,
 }
 
 #[derive(Debug, Error)]
@@ -97,5 +103,7 @@ fn merge_with_default(partial: PartialConfig) -> AppConfig {
         font_size: partial.font_size.unwrap_or(defaults.font_size),
         recent_files_limit: partial.recent_files_limit.unwrap_or(defaults.recent_files_limit),
         line_width_hint: partial.line_width_hint.unwrap_or(defaults.line_width_hint),
+        ui_language: partial.ui_language.unwrap_or(defaults.ui_language),
+        show_debug_panels: partial.show_debug_panels.unwrap_or(defaults.show_debug_panels),
     }
 }

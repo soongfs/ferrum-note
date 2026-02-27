@@ -49,8 +49,37 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev
 
-      - name: Build bundles
-        run: pnpm tauri build
+      - name: Build bundles (non-Windows with tag version override)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${{ github.ref_name }}"
+          version="${tag#v}"
+          config_path="src-tauri/tauri.release.json"
+
+          cat > "$config_path" <<EOF
+          {
+            "version": "$version"
+          }
+          EOF
+
+          pnpm tauri build --config "$config_path"
+
+      - name: Build bundles (Windows with tag version override)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          $config = @{
+            version = $version
+          } | ConvertTo-Json -Depth 4
+
+          $configPath = "src-tauri/tauri.release.json"
+          Set-Content -Path $configPath -Value $config -Encoding UTF8
+          pnpm tauri build --config $configPath
 
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v4

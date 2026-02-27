@@ -55,6 +55,8 @@ export type UiMessages = {
     runtime: string;
     modeTauri: string;
     modeWeb: string;
+    modeWriter: string;
+    modeSource: string;
   };
   editor: {
     placeholder: string;
@@ -69,7 +71,11 @@ export type UiMessages = {
     undo: string;
     redo: string;
     language: string;
+    languagePlaceholder: string;
     shortcutHint: string;
+    sourceShortcutHint: string;
+    syntaxLens: string;
+    syntaxLensError: string;
   };
 };
 
@@ -130,7 +136,9 @@ export const en: UiMessages = {
     lineCount: "Lines",
     runtime: "Runtime",
     modeTauri: "Desktop",
-    modeWeb: "Browser"
+    modeWeb: "Browser",
+    modeWriter: "Writer",
+    modeSource: "Source"
   },
   editor: {
     placeholder: "Start writing Markdown...",
@@ -145,7 +153,11 @@ export const en: UiMessages = {
     undo: "Undo",
     redo: "Redo",
     language: "Language",
-    shortcutHint: "Shortcuts: Ctrl/Cmd+B, Ctrl/Cmd+I, Ctrl/Cmd+Z"
+    languagePlaceholder: "e.g. python",
+    shortcutHint: "Shortcuts: Ctrl/Cmd+B, Ctrl/Cmd+I, Ctrl/Cmd+Z",
+    sourceShortcutHint: "Source mode supports line numbers, wrapping, and Ctrl/Cmd+Shift+M toggle.",
+    syntaxLens: "Markdown Syntax Lens",
+    syntaxLensError: "Invalid Markdown block. Keep one top-level block in the lens."
   }
 };
 
@@ -205,7 +217,9 @@ export const zhCN: UiMessages = {
     lineCount: "行数",
     runtime: "运行时",
     modeTauri: "桌面",
-    modeWeb: "浏览器"
+    modeWeb: "浏览器",
+    modeWriter: "写作",
+    modeSource: "源码"
   },
   editor: {
     placeholder: "开始输入 Markdown...",
@@ -220,7 +234,11 @@ export const zhCN: UiMessages = {
     undo: "撤销",
     redo: "重做",
     language: "语言",
-    shortcutHint: "快捷键：Ctrl/Cmd+B、Ctrl/Cmd+I、Ctrl/Cmd+Z"
+    languagePlaceholder: "如 python",
+    shortcutHint: "快捷键：Ctrl/Cmd+B、Ctrl/Cmd+I、Ctrl/Cmd+Z",
+    sourceShortcutHint: "源码模式支持行号、自动换行与 Ctrl/Cmd+Shift+M 切换。",
+    syntaxLens: "Markdown 语法镜头",
+    syntaxLensError: "当前块解析失败，请保持为单个顶层 Markdown 块。"
   }
 };
 

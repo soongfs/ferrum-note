@@ -1,10 +1,13 @@
 import MarkdownIt from "markdown-it";
-import { type Mark, type Node as ProseMirrorNode, type Schema } from "@tiptap/pm/model";
+import { Fragment, type Mark, type Node as ProseMirrorNode, type Schema } from "@tiptap/pm/model";
 import { MarkdownParser, MarkdownSerializer } from "@tiptap/pm/markdown";
+import { normalizeCodeLanguage } from "./codeLanguage";
 
 export type MarkdownCodec = {
   parseMarkdown(markdown: string): ProseMirrorNode;
+  parseMarkdownToTopLevelNodes(markdown: string): ProseMirrorNode[];
   serializeMarkdown(doc: ProseMirrorNode): string;
+  serializeTopLevelNodes(nodes: ProseMirrorNode[]): string;
 };
 
 const markdownIt = new MarkdownIt("commonmark", { html: false });
@@ -27,11 +30,17 @@ export function createMarkdownCodec(schema: Schema): MarkdownCodec {
         level: Number(token.tag.slice(1))
       })
     },
-    code_block: { block: "codeBlock", noCloseToken: true },
+    code_block: {
+      block: "codeBlock",
+      getAttrs: () => ({
+        language: "plaintext"
+      }),
+      noCloseToken: true
+    },
     fence: {
       block: "codeBlock",
       getAttrs: (token) => ({
-        language: token.info?.trim().split(/\s+/)[0] || null
+        language: normalizeCodeLanguage(token.info?.trim().split(/\s+/)[0])
       }),
       noCloseToken: true
     },
@@ -57,8 +66,9 @@ export function createMarkdownCodec(schema: Schema): MarkdownCodec {
       codeBlock(state, node) {
         const backticks = node.textContent.match(/`{3,}/gm);
         const fence = backticks ? `${backticks.sort().slice(-1)[0]}\`` : "```";
-        const language = String(node.attrs.language || "").trim();
-        state.write(`${fence}${language}\n`);
+        const language = normalizeCodeLanguage(String(node.attrs.language || ""));
+        const languageSuffix = language === "plaintext" ? "" : language;
+        state.write(`${fence}${languageSuffix}\n`);
         state.text(node.textContent, false);
         state.write("\n");
         state.write(fence);
@@ -117,7 +127,9 @@ export function createMarkdownCodec(schema: Schema): MarkdownCodec {
             return ">";
           }
           const href = String(mark.attrs.href || "").replace(/[()"]/g, "\\$&");
-          const title = mark.attrs.title ? ` "${String(mark.attrs.title).replace(/"/g, '\\"')}"` : "";
+          const title = mark.attrs.title
+            ? ` "${String(mark.attrs.title).replace(/"/g, '\\"')}"`
+            : "";
           return `](${href}${title})`;
         },
         mixable: true
@@ -134,8 +146,19 @@ export function createMarkdownCodec(schema: Schema): MarkdownCodec {
     parseMarkdown(markdown: string): ProseMirrorNode {
       return parser.parse(markdown || "");
     },
+    parseMarkdownToTopLevelNodes(markdown: string): ProseMirrorNode[] {
+      const document = parser.parse(markdown || "");
+      return document.content.content.slice();
+    },
     serializeMarkdown(doc: ProseMirrorNode): string {
       return serializer.serialize(doc).trimEnd();
+    },
+    serializeTopLevelNodes(nodes: ProseMirrorNode[]): string {
+      const fragment = Fragment.fromArray(nodes);
+      const document =
+        schema.topNodeType.createAndFill(undefined, fragment) ||
+        schema.topNodeType.create(undefined, fragment);
+      return serializer.serialize(document).trimEnd();
     }
   };
 }

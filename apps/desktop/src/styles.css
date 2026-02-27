@@ -73,6 +73,12 @@ body {
   max-width: 520px;
 }
 
+.mode-toggle-group {
+  display: inline-flex;
+  gap: 6px;
+  margin-right: 2px;
+}
+
 .runtime-banner {
   margin-top: 14px;
   border: 1px solid #f1d8b8;
@@ -237,6 +243,12 @@ body {
   color: var(--ink-normal);
 }
 
+.secondary-button.is-active {
+  background: var(--brand-500);
+  border-color: var(--brand-500);
+  color: #fff;
+}
+
 .action-button:disabled,
 .secondary-button:disabled,
 .toolbar-button:disabled {
@@ -288,11 +300,12 @@ body {
   margin-left: 4px;
 }
 
-.code-language-select {
+.code-language-input {
   height: 34px;
   border: 1px solid #c8d5e8;
   border-radius: 9px;
   padding: 0 10px;
+  min-width: 120px;
   background: #fff;
   color: var(--ink-normal);
   font-size: 12px;
@@ -312,17 +325,90 @@ body {
 }
 
 .editor-content .ProseMirror pre {
-  background: #1b2433;
-  color: #dce8f9;
+  position: relative;
+  background: #f7f9ff;
+  color: #0f1b2d;
   border-radius: var(--radius-md);
-  padding: 14px;
+  border: 1px solid #d9e3f5;
+  padding: 18px 14px 14px;
   overflow: auto;
   font-family: var(--font-mono);
   font-size: 13px;
 }
 
+.editor-content .ProseMirror pre[data-language]::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  background: #ebf1ff;
+  border: 1px solid #d2ddf2;
+  border-radius: 999px;
+  padding: 1px 8px;
+  text-transform: lowercase;
+}
+
 .editor-content .ProseMirror code {
   font-family: var(--font-mono);
+}
+
+.editor-content .ProseMirror pre > code {
+  display: block;
+}
+
+.source-editor-shell {
+  min-height: 520px;
+}
+
+.source-editor {
+  border-bottom: 1px solid #dde5f2;
+}
+
+.source-editor .cm-editor {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  min-height: 520px;
+}
+
+.source-editor .cm-scroller {
+  font-family: var(--font-mono);
+}
+
+.syntax-lens {
+  border-top: 1px dashed #d9e1ef;
+  background: #f8fbff;
+  padding: 12px;
+}
+
+.syntax-lens-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  margin-bottom: 6px;
+}
+
+.syntax-lens-input {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid #c8d5e8;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  color: var(--ink-strong);
+  background: #fff;
+}
+
+.syntax-lens-error {
+  margin: 8px 0 0;
+  color: #b24c18;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .editor-content .ProseMirror p.is-editor-empty:first-child::before {

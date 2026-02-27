@@ -19,6 +19,7 @@ import {
   getRuntimeCapabilities
 } from "./runtime/capabilities";
 import { countMatches, replaceAll, replaceNext } from "./search/ops";
+import type { EditorMode } from "./editor/types";
 import type { EditorSyncPayload, WorkspaceEntry } from "./types/contracts";
 import { calculateDocumentStats } from "./workspace/viewModel";
 
@@ -43,6 +44,7 @@ function App() {
   const [loadingDirectories, setLoadingDirectories] = useState<string[]>([]);
   const [selectedEntryPath, setSelectedEntryPath] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [editorMode, setEditorMode] = useState<EditorMode>("writer");
   const previousMarkdown = useRef(INITIAL_DOC);
 
   const runtimeMode = useMemo(() => detectRuntimeMode(), []);
@@ -146,11 +148,7 @@ function App() {
         setLoadingDirectories((current) => current.filter((item) => item !== target));
       }
     },
-    [
-      messages.app.explorerLoadFailed,
-      runtimeCapabilities.workspaceExplorer,
-      workspaceRootPath
-    ]
+    [messages.app.explorerLoadFailed, runtimeCapabilities.workspaceExplorer, workspaceRootPath]
   );
 
   useEffect(() => {
@@ -458,11 +456,15 @@ function App() {
                 disabled={!runtimeCapabilities.workspaceExplorer}
                 data-testid={`explorer-item-${entry.relative_path.replace(/[^a-z0-9-_]/gi, "-")}`}
               >
-                <span className="explorer-caret">{isDirectory ? (isExpanded ? "▾" : "▸") : "•"}</span>
+                <span className="explorer-caret">
+                  {isDirectory ? (isExpanded ? "▾" : "▸") : "•"}
+                </span>
                 <span className="explorer-name">{entry.name}</span>
               </button>
               {isDirectory && isExpanded ? (
-                <div className="explorer-children">{renderExplorer(entry.relative_path, depth + 1)}</div>
+                <div className="explorer-children">
+                  {renderExplorer(entry.relative_path, depth + 1)}
+                </div>
               ) : null}
             </li>
           );
@@ -483,6 +485,24 @@ function App() {
           </p>
         </div>
         <div className="top-actions">
+          <div className="mode-toggle-group" role="group" aria-label="Editor mode">
+            <button
+              className={`secondary-button${editorMode === "writer" ? " is-active" : ""}`}
+              type="button"
+              onClick={() => setEditorMode("writer")}
+              data-testid="mode-writer-button"
+            >
+              {messages.app.modeWriter}
+            </button>
+            <button
+              className={`secondary-button${editorMode === "source" ? " is-active" : ""}`}
+              type="button"
+              onClick={() => setEditorMode("source")}
+              data-testid="mode-source-button"
+            >
+              {messages.app.modeSource}
+            </button>
+          </div>
           <button
             className="action-button"
             type="button"
@@ -599,7 +619,15 @@ function App() {
           </div>
 
           <section className="editor-panel">
-            <MarkdownEditor value={markdown} onChange={updateDocument} labels={messages.editor} />
+            <MarkdownEditor
+              value={markdown}
+              sourceValue={markdown}
+              mode={editorMode}
+              onModeChange={setEditorMode}
+              onChange={updateDocument}
+              onSourceChange={updateDocument}
+              labels={messages.editor}
+            />
           </section>
         </section>
       </section>

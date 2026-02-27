@@ -5,4 +5,4 @@
 - Search/replace currently targets Markdown source text and does not provide in-editor highlight navigation.
 - File watcher is started but frontend event broadcast integration is not fully wired yet.
 - No cloud sync, collaboration, or plugin marketplace in this release.
-- Syntax lens currently focuses on inline markers and core block types; task-list and table marker direct editing are not included yet.
+- Strict marker rendering currently targets inline + core block markers; task-list and table marker direct editing are not included yet.

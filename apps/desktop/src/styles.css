@@ -43,6 +43,18 @@ body {
   color: var(--ink-strong);
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .hero-eyebrow {
   margin: 0;
   letter-spacing: 0.08em;
@@ -55,6 +67,15 @@ body {
 .hero-subtitle {
   margin: 8px 0 0;
   color: var(--ink-muted);
+}
+
+.brand-wordmark {
+  display: block;
+  width: min(560px, 100%);
+  max-width: 100%;
+  margin-top: 8px;
+  border-radius: 12px;
+  border: 1px solid #d7dfeb;
 }
 
 .workspace-path {
@@ -71,12 +92,6 @@ body {
   justify-content: flex-end;
   gap: var(--space-2);
   max-width: 520px;
-}
-
-.mode-toggle-group {
-  display: inline-flex;
-  gap: 6px;
-  margin-right: 2px;
 }
 
 .runtime-banner {
@@ -280,143 +295,59 @@ body {
   box-shadow: none;
 }
 
-.editor-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  align-items: center;
-  padding: 10px;
+.markdown-editor {
   border-bottom: 1px solid #dde5f2;
-  background: var(--bg-muted);
 }
 
-.code-language-select-label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-muted);
-  margin-left: 4px;
+.markdown-editor .cm-editor {
+  min-height: 520px;
+  border: 0;
+  background: var(--bg-surface);
 }
 
-.code-language-input {
-  height: 34px;
-  border: 1px solid #c8d5e8;
-  border-radius: 9px;
-  padding: 0 10px;
-  min-width: 120px;
-  background: #fff;
-  color: var(--ink-normal);
-  font-size: 12px;
-}
-
-.editor-content {
-  min-height: 500px;
-}
-
-.editor-content .ProseMirror {
-  min-height: 500px;
-  padding: 24px;
-  line-height: 1.7;
+.markdown-editor .cm-scroller {
   font-size: 16px;
-  outline: none;
+  line-height: 1.7;
+}
+
+.markdown-editor .cm-content {
+  min-height: 520px;
+  padding: 24px;
+  caret-color: #164e96;
+}
+
+.markdown-editor--writer .cm-content {
+  font-family: var(--font-ui);
   color: var(--ink-strong);
 }
 
-.editor-content .ProseMirror pre {
-  position: relative;
-  background: #f7f9ff;
-  color: #0f1b2d;
-  border-radius: var(--radius-md);
-  border: 1px solid #d9e3f5;
-  padding: 18px 14px 14px;
-  overflow: auto;
+.markdown-editor--source .cm-content {
   font-family: var(--font-mono);
-  font-size: 13px;
+  color: #24344a;
 }
 
-.editor-content .ProseMirror pre[data-language]::before {
-  content: attr(data-language);
-  position: absolute;
-  top: 6px;
-  right: 10px;
+.markdown-editor--source .cm-gutters {
+  background: #f7f9ff;
+  color: #6a7a96;
+  border-right: 1px solid #dce4f2;
+}
+
+.markdown-editor .cm-activeLine {
+  background: #f8fbff;
+}
+
+.cm-fn-code-info {
+  display: inline-block;
+  margin-left: 4px;
+  margin-right: 4px;
+  padding: 0 7px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  color: var(--ink-muted);
+  color: #425271;
   background: #ebf1ff;
   border: 1px solid #d2ddf2;
-  border-radius: 999px;
-  padding: 1px 8px;
   text-transform: lowercase;
-}
-
-.editor-content .ProseMirror code {
-  font-family: var(--font-mono);
-}
-
-.editor-content .ProseMirror pre > code {
-  display: block;
-}
-
-.source-editor-shell {
-  min-height: 520px;
-}
-
-.source-editor {
-  border-bottom: 1px solid #dde5f2;
-}
-
-.source-editor .cm-editor {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  min-height: 520px;
-}
-
-.source-editor .cm-scroller {
-  font-family: var(--font-mono);
-}
-
-.syntax-lens {
-  border-top: 1px dashed #d9e1ef;
-  background: #f8fbff;
-  padding: 12px;
-}
-
-.syntax-lens-header {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-muted);
-  margin-bottom: 6px;
-}
-
-.syntax-lens-input {
-  width: 100%;
-  min-height: 120px;
-  resize: vertical;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.5;
-  border: 1px solid #c8d5e8;
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  color: var(--ink-strong);
-  background: #fff;
-}
-
-.syntax-lens-error {
-  margin: 8px 0 0;
-  color: #b24c18;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.editor-content .ProseMirror p.is-editor-empty:first-child::before {
-  color: #8a97ad;
-  content: attr(data-placeholder);
-  float: left;
-  pointer-events: none;
-  height: 0;
 }
 
 .editor-shortcut-hint {
@@ -496,8 +427,8 @@ body {
     justify-content: flex-start;
   }
 
-  .editor-content,
-  .editor-content .ProseMirror {
+  .markdown-editor .cm-editor,
+  .markdown-editor .cm-content {
     min-height: 360px;
   }
 }

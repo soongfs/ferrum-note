@@ -7,9 +7,13 @@ FerrumNote is a Rust + Tauri + TipTap Markdown editor focused on desktop-first w
 ## Highlights
 
 - Typora-like live Markdown editing experience
-- Dual editor modes:
-  - `Writer`: rich editing with Markdown syntax lens for direct marker editing
-  - `Source`: raw Markdown editing with CodeMirror 6 (line numbers + wrapping)
+- CodeMirror-first editing pipeline with one Markdown source of truth
+- Single `Source` toggle:
+  - off: `Writer` mode (WYSIWYG-style)
+  - on: raw Markdown source mode (line numbers + wrapping)
+- Strict Typora-style marker behavior in Writer mode:
+  - markdown markers stay hidden while cursor is outside syntax ranges
+  - markers become visible and directly editable when cursor enters syntax ranges
 - Workspace explorer (directory-first, Markdown-focused)
 - Desktop file lifecycle: open, save, save as, autosave, version conflict guard
 - HTML and PDF export
@@ -49,7 +53,7 @@ Use **Open Folder** to set the workspace root, then browse files from the explor
 
 Mode switch:
 
-- Click `Writer` / `Source` in the header
+- Click `Source` toggle in the header
 - Shortcut: `Ctrl/Cmd + Shift + M`
 
 ### Browser Mode (capability-degraded)
@@ -61,7 +65,7 @@ pnpm dev
 ```
 
 In browser mode, desktop-only features are disabled (`open/save/export/watch/explorer file IO`).
-Writer/Source switching, syntax lens editing, and search/replace remain available.
+Source toggle, Writer marker editing behavior, and search/replace remain available.
 
 ## Validation Commands
 

@@ -1,17 +1,16 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function createFencedCodeBlock(page: Page, language: string, bodyLines: string[]) {
-  const proseMirror = page.locator(".ProseMirror");
-  await proseMirror.click();
-  await page.keyboard.press("Control+End");
-  await page.keyboard.press("Enter");
-  await page.keyboard.type(`\`\`\`${language}`);
-  await page.keyboard.press("Enter");
+async function setSourceMarkdown(page: Page, markdown: string) {
+  await page.getByTestId("mode-source-toggle-button").click();
+  await expect(page.getByTestId("editor-mode-source")).toBeVisible();
 
-  for (const line of bodyLines) {
-    await page.keyboard.type(line);
-    await page.keyboard.press("Enter");
-  }
+  const source = page.locator(".cm-content");
+  await source.click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type(markdown);
+
+  await page.getByTestId("mode-source-toggle-button").click();
+  await expect(page.getByTestId("editor-mode-writer")).toBeVisible();
 }
 
 test.describe("FerrumNote web mode", () => {
@@ -39,46 +38,82 @@ test.describe("FerrumNote web mode", () => {
     await page.getByTestId("replace-all-button").click();
 
     await expect(page.getByText("Matches:", { exact: false })).toBeVisible();
-    await expect(page.locator(".ProseMirror")).toBeVisible();
+    await expect(page.locator(".cm-editor")).toBeVisible();
   });
 
-  test("switches writer/source modes and keeps markdown synchronized", async ({ page }) => {
+  test("toggles source mode for the entire editor and keeps content", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByTestId("mode-source-button").click();
+    await setSourceMarkdown(page, "# Heading\n\nText with **bold** and `code`.");
+
+    const firstLine = page.locator(".markdown-editor--writer .cm-line").first();
+    await expect(firstLine).toContainText("Heading");
+    await expect(firstLine).not.toContainText("# Heading");
+
+    await page.getByText("Heading").first().click();
+    await expect(firstLine).toContainText("# Heading");
+  });
+
+  test("reveals bold and inline-code markers when cursor enters range", async ({ page }) => {
+    await page.goto("/");
+
+    await setSourceMarkdown(page, "Text **bold** and `code`");
+
+    const line = page.locator(".markdown-editor--writer .cm-line", {
+      hasText: "Text"
+    });
+
+    await expect(line).not.toContainText("**bold**");
+    await page.getByText("bold").first().click();
+    await expect(line).toContainText("**bold**");
+
+    await page.getByText("code").first().click();
+    await page.keyboard.press("ArrowLeft");
+    await expect(line).toContainText("`code`");
+  });
+
+  test("keeps inline code stable after pressing Enter", async ({ page }) => {
+    await page.goto("/");
+
+    const editor = page.locator(".markdown-editor--writer .cm-content");
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("`test`");
+    await page.keyboard.press("Enter");
+
+    await page.getByTestId("mode-source-toggle-button").click();
     await expect(page.getByTestId("editor-mode-source")).toBeVisible();
 
-    await page.locator(".cm-content").click();
-    await page.keyboard.press("Control+A");
-    await page.keyboard.type("# Mode Sync\\n\\n**bold** and `code`");
-
-    await page.getByTestId("mode-writer-button").click();
-    await expect(page.getByTestId("editor-mode-writer")).toBeVisible();
-
-    await expect(page.locator(".ProseMirror h1")).toContainText("Mode Sync");
-    await page.getByText("bold").first().click();
-    await expect(page.getByTestId("syntax-lens-panel")).toBeVisible();
-    await expect(page.getByTestId("syntax-lens-input")).toHaveValue(/\*\*bold\*\*/);
-
-    await page.getByTestId("syntax-lens-input").fill("**bolder** and `code`");
-    await expect(page.getByText("bolder").first()).toBeVisible();
+    const sourceText = await page.locator(".cm-content").innerText();
+    expect(sourceText).toContain("`test`");
+    expect(sourceText).not.toContain("``` est` ``");
   });
 
-  test("captures python fenced language and renders highlighted tokens", async ({ page }) => {
+  test("preserves fenced code language and token highlighting", async ({ page }) => {
     await page.goto("/");
-    await createFencedCodeBlock(page, "python", ["def add(x, y):", "    return x + y"]);
 
-    await expect(page.locator("pre[data-language='python']")).toBeVisible();
-    await expect(
-      page.locator("pre[data-language='python'] span[class^='hljs']").first()
-    ).toBeVisible();
-  });
+    const editor = page.locator(".markdown-editor--writer .cm-content");
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("```py");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("print(1)");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("```");
+    await page.keyboard.press("Enter");
 
-  test("captures c fenced language and renders highlighted tokens", async ({ page }) => {
-    await page.goto("/");
-    await createFencedCodeBlock(page, "c", ["int main() {", "  return 0;", "}"]);
+    await page.getByTestId("mode-source-toggle-button").click();
+    const sourceText = await page.locator(".cm-content").innerText();
+    expect(sourceText).toContain("```python");
 
-    await expect(page.locator("pre[data-language='c']")).toBeVisible();
-    await expect(page.locator("pre[data-language='c'] span[class^='hljs']").first()).toBeVisible();
+    await page.getByTestId("mode-source-toggle-button").click();
+    const tokenSpan = page
+      .locator(".markdown-editor--writer .cm-line", { hasText: "print(1)" })
+      .locator("span[class]")
+      .first();
+    await expect(tokenSpan).toBeVisible();
+    expect(await tokenSpan.getAttribute("class")).toBeTruthy();
   });
 });

@@ -36,6 +36,13 @@ describe("writer marker decorations", () => {
     expect(ranges).not.toContainEqual([0, 2]);
   });
 
+  it("hides heading marker when cursor is at heading boundary", () => {
+    const doc = "# Title\n\nParagraph";
+    const ranges = hiddenRangesFor(doc, doc.indexOf("\n"));
+
+    expect(ranges).toContainEqual([0, 2]);
+  });
+
   it("shows bold markers only when cursor enters bold range", () => {
     const doc = "Text **bold** end";
     const outside = hiddenRangesFor(doc, 0);

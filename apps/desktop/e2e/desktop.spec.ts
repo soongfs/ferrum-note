@@ -68,6 +68,7 @@ test.describe("FerrumNote web mode", () => {
     await expect(line).toContainText("**bold**");
 
     await page.getByText("code").first().click();
+    await page.keyboard.press("ArrowLeft");
     await expect(line).toContainText("`code`");
   });
 

@@ -78,13 +78,6 @@ export function MarkdownEditor({ value, mode, onModeToggle, onChange, labels }: 
             }
           },
           {
-            key: "Mod-Shift-m",
-            run: () => {
-              onModeToggle();
-              return true;
-            }
-          },
-          {
             key: "Mod-b",
             run: (view) => runShortcut(view, "toggleBold")
           },
@@ -144,7 +137,7 @@ export function MarkdownEditor({ value, mode, onModeToggle, onChange, labels }: 
     }
 
     return [...sharedExtensions, placeholder(labels.placeholder)];
-  }, [labels.placeholder, mode, onModeToggle]);
+  }, [labels.placeholder, mode]);
 
   return (
     <section className="editor-shell" data-testid={`editor-mode-${mode}`}>

@@ -87,7 +87,7 @@ export function createWriterMarkerDecorations(policy: WriterMarkerPolicy) {
 }
 
 function isSelectionInside(position: number, from: number, to: number): boolean {
-  return position >= from && position <= to;
+  return position >= from && position < to;
 }
 
 function markerHideRange(state: EditorState, node: NodeContext): [number, number] {

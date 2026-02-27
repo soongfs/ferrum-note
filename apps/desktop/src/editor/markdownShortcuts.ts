@@ -48,6 +48,15 @@ export function applyEnterBehavior(state: EditorState): Transaction | null {
     return null;
   }
 
+  const trimmedLine = line.text.trim();
+  if (/^`[^`\n]+`$/u.test(trimmedLine)) {
+    return null;
+  }
+
+  if (line.text.startsWith("````")) {
+    return null;
+  }
+
   const backtickFenceMatch = line.text.match(/^```([a-z0-9_+.#-]+)?$/i);
   if (backtickFenceMatch) {
     const normalized = normalizeCodeLanguage(backtickFenceMatch[1]);

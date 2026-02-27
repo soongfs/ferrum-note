@@ -12,9 +12,14 @@ import {
 } from "@codemirror/commands";
 import { type EditorView, keymap, placeholder } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
-import { DEFAULT_WRITER_MARKER_POLICY, type EditorMode } from "./types";
+import {
+  DEFAULT_WRITER_MARKER_POLICY,
+  DEFAULT_WRITER_RENDER_POLICY,
+  type EditorMode
+} from "./types";
 import { createWriterMarkerDecorations } from "./markerDecorations";
 import { CODE_LANGUAGE_SUPPORTS } from "./codeLanguageSupport";
+import { createWriterPresentationDecorations } from "./writerPresentationDecorations";
 import {
   applyEnterBehavior,
   applyMarkdownShortcut,
@@ -131,6 +136,7 @@ export function MarkdownEditor({ value, mode, onModeToggle, onChange, labels }: 
     if (mode === "writer") {
       return [
         ...sharedExtensions,
+        createWriterPresentationDecorations(DEFAULT_WRITER_RENDER_POLICY),
         createWriterMarkerDecorations(DEFAULT_WRITER_MARKER_POLICY),
         placeholder(labels.placeholder)
       ];

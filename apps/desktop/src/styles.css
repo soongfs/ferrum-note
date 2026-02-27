@@ -321,6 +321,57 @@ body {
   color: var(--ink-strong);
 }
 
+.markdown-editor--writer .cm-line.cm-fn-heading {
+  font-weight: 780;
+  font-size: calc(1rem * var(--cm-fn-heading-scale, 1));
+  letter-spacing: -0.01em;
+  color: #172235;
+  margin-top: 0.18em;
+  margin-bottom: 0.12em;
+}
+
+.markdown-editor--writer .cm-line.cm-fn-heading-1 {
+  line-height: 1.2;
+}
+
+.markdown-editor--writer .cm-line.cm-fn-heading-2 {
+  line-height: 1.25;
+}
+
+.markdown-editor--writer .cm-line.cm-fn-heading-3 {
+  line-height: 1.3;
+}
+
+.markdown-editor--writer .cm-line.cm-fn-heading-6 {
+  color: #32455f;
+}
+
+.markdown-editor--writer .cm-line.cm-fn-fenced-line {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  background: #f7f9fc;
+  border-left: 1px solid #d4dceb;
+  border-right: 1px solid #d4dceb;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.markdown-editor--writer .cm-line.cm-fn-fenced-open {
+  border-top: 1px solid #d4dceb;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.markdown-editor--writer .cm-line.cm-fn-fenced-close {
+  border-bottom: 1px solid #d4dceb;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.markdown-editor--writer .cm-line.cm-fn-fenced-body {
+  border-top: 0;
+}
+
 .markdown-editor--source .cm-content {
   font-family: var(--font-mono);
   color: #24344a;
@@ -338,15 +389,15 @@ body {
 
 .cm-fn-code-info {
   display: inline-block;
-  margin-left: 4px;
+  margin-left: 6px;
   margin-right: 4px;
   padding: 0 7px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
-  color: #425271;
-  background: #ebf1ff;
-  border: 1px solid #d2ddf2;
+  color: #2f415d;
+  background: #ecf2fd;
+  border: 1px solid #cfdcf2;
   text-transform: lowercase;
 }
 

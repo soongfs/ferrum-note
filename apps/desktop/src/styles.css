@@ -353,6 +353,9 @@ body {
 
 .editor-content .ProseMirror code {
   font-family: var(--font-mono);
+}
+
+.editor-content .ProseMirror pre > code {
   display: block;
 }
 

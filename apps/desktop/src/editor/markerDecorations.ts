@@ -10,7 +10,6 @@ type NodeContext = {
 };
 
 const hiddenMarkerDecoration = Decoration.replace({});
-const codeInfoDecoration = Decoration.mark({ class: "cm-fn-code-info" });
 
 export function buildMarkdownMarkerDecorations(
   state: EditorState,
@@ -55,9 +54,6 @@ export function buildMarkdownMarkerDecorations(
         }
       }
 
-      if (current.name === "CodeInfo" && parentNode.name === "FencedCode" && !selectionInsideParent) {
-        builder.add(current.from, current.to, codeInfoDecoration);
-      }
     } while (cursor.nextSibling());
   };
 

@@ -22,6 +22,7 @@ import { countMatches, replaceAll, replaceNext } from "./search/ops";
 import type { EditorMode } from "./editor/types";
 import type { EditorSyncPayload, WorkspaceEntry } from "./types/contracts";
 import { calculateDocumentStats } from "./workspace/viewModel";
+import brandWordmark from "./assets/brand-wordmark.png";
 
 const INITIAL_DOC = `# FerrumNote\n\nStart writing your Markdown notes.`;
 
@@ -478,31 +479,22 @@ function App() {
       <header className="top-bar">
         <div className="top-bar-main">
           <p className="hero-eyebrow">Markdown Desktop Workspace</p>
-          <h1>{messages.app.title}</h1>
+          <h1 className="visually-hidden">{messages.app.title}</h1>
+          <img className="brand-wordmark" src={brandWordmark} alt="FerrumNote logo" />
           <p className="hero-subtitle">{messages.app.subtitle}</p>
           <p className="workspace-path">
             {messages.app.workspace}: {workspaceRootPath || messages.app.workspaceUnset}
           </p>
         </div>
         <div className="top-actions">
-          <div className="mode-toggle-group" role="group" aria-label="Editor mode">
-            <button
-              className={`secondary-button${editorMode === "writer" ? " is-active" : ""}`}
-              type="button"
-              onClick={() => setEditorMode("writer")}
-              data-testid="mode-writer-button"
-            >
-              {messages.app.modeWriter}
-            </button>
-            <button
-              className={`secondary-button${editorMode === "source" ? " is-active" : ""}`}
-              type="button"
-              onClick={() => setEditorMode("source")}
-              data-testid="mode-source-button"
-            >
-              {messages.app.modeSource}
-            </button>
-          </div>
+          <button
+            className={`secondary-button${editorMode === "source" ? " is-active" : ""}`}
+            type="button"
+            onClick={() => setEditorMode((current) => (current === "source" ? "writer" : "source"))}
+            data-testid="mode-source-toggle-button"
+          >
+            {messages.app.modeSource}
+          </button>
           <button
             className="action-button"
             type="button"
@@ -621,11 +613,11 @@ function App() {
           <section className="editor-panel">
             <MarkdownEditor
               value={markdown}
-              sourceValue={markdown}
               mode={editorMode}
-              onModeChange={setEditorMode}
+              onModeToggle={() =>
+                setEditorMode((current) => (current === "source" ? "writer" : "source"))
+              }
               onChange={updateDocument}
-              onSourceChange={updateDocument}
               labels={messages.editor}
             />
           </section>

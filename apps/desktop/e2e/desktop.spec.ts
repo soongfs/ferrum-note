@@ -54,6 +54,19 @@ test.describe("FerrumNote web mode", () => {
     await expect(firstLine).toContainText("# Heading");
   });
 
+  test("applies heading hierarchy rendering classes in writer mode", async ({ page }) => {
+    await page.goto("/");
+
+    await setSourceMarkdown(page, "# Heading 1\n\n## Heading 2\n\nParagraph");
+
+    await expect(
+      page.locator(".markdown-editor--writer .cm-line.cm-fn-heading-1", { hasText: "Heading 1" })
+    ).toBeVisible();
+    await expect(
+      page.locator(".markdown-editor--writer .cm-line.cm-fn-heading-2", { hasText: "Heading 2" })
+    ).toBeVisible();
+  });
+
   test("reveals bold and inline-code markers when cursor enters range", async ({ page }) => {
     await page.goto("/");
 
@@ -90,7 +103,7 @@ test.describe("FerrumNote web mode", () => {
     expect(sourceText).not.toContain("``` est` ``");
   });
 
-  test("preserves fenced code language and token highlighting", async ({ page }) => {
+  test("auto-closes fenced code and preserves language highlighting", async ({ page }) => {
     await page.goto("/");
 
     const editor = page.locator(".markdown-editor--writer .cm-content");
@@ -100,13 +113,10 @@ test.describe("FerrumNote web mode", () => {
     await page.keyboard.type("```py");
     await page.keyboard.press("Enter");
     await page.keyboard.type("print(1)");
-    await page.keyboard.press("Enter");
-    await page.keyboard.type("```");
-    await page.keyboard.press("Enter");
 
     await page.getByTestId("mode-source-toggle-button").click();
     const sourceText = await page.locator(".cm-content").innerText();
-    expect(sourceText).toContain("```python");
+    expect(sourceText).toContain("```python\nprint(1)\n```");
 
     await page.getByTestId("mode-source-toggle-button").click();
     const tokenSpan = page

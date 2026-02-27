@@ -32,13 +32,24 @@ describe("markdown shortcut commands", () => {
 
     const transaction = applyEnterBehavior(state);
     expect(transaction).toBeTruthy();
-    expect(transaction?.newDoc.toString()).toBe("```python\n");
+    expect(transaction?.newDoc.toString()).toBe("```python\n\n```");
+    expect(transaction?.newSelection.main.anchor).toBe(10);
   });
 
   it("does not transform inline code on enter", () => {
     const state = EditorState.create({
       doc: "`test`",
       selection: { anchor: 6 }
+    });
+
+    const transaction = applyEnterBehavior(state);
+    expect(transaction).toBeNull();
+  });
+
+  it("does not insert an extra closing fence when one already exists", () => {
+    const state = EditorState.create({
+      doc: "```python\nprint(1)\n```",
+      selection: { anchor: 9 }
     });
 
     const transaction = applyEnterBehavior(state);

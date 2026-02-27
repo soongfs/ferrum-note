@@ -4,6 +4,9 @@ use fn_core::WorkspaceEntryKind;
 use fn_fs::{list_workspace_entries, open_file, save_as_file, save_file, FsError};
 use tempfile::tempdir;
 
+#[cfg(unix)]
+use std::os::unix::fs::symlink;
+
 #[test]
 fn save_file_returns_conflict_when_expected_version_is_stale() {
     let dir = tempdir().expect("tempdir should be created");
@@ -105,4 +108,25 @@ fn list_workspace_entries_rejects_non_directory_workspace_root() {
         .expect_err("file root should fail");
 
     assert!(matches!(err, FsError::InvalidPath(_)));
+}
+
+#[cfg(unix)]
+#[test]
+fn list_workspace_entries_keeps_symlink_alias_for_current_relative_path() {
+    let dir = tempdir().expect("tempdir should be created");
+    let root = dir.path().join("workspace");
+    let docs = root.join("docs");
+    let alias = root.join("link");
+
+    fs::create_dir_all(&docs).expect("docs should be created");
+    fs::write(docs.join("note.md"), "hello").expect("note.md should be created");
+    symlink(&docs, &alias).expect("symlink should be created");
+
+    let listed =
+        list_workspace_entries(root.to_str().expect("root path must be utf-8"), Some("link"))
+            .expect("listing through symlink alias should succeed");
+
+    assert_eq!(listed.current_relative_path, "link");
+    assert_eq!(listed.entries.len(), 1);
+    assert_eq!(listed.entries[0].relative_path, "link/note.md");
 }

@@ -45,6 +45,7 @@ export type UiMessages = {
     saveState: string;
     saveStateSaved: string;
     saveStateUnsaved: string;
+    saveStateSaving: string;
     saveStateAutosaving: string;
     saveStateConflict: string;
     saveStateError: string;
@@ -120,6 +121,7 @@ export const en: UiMessages = {
     saveState: "Save State",
     saveStateSaved: "Saved",
     saveStateUnsaved: "Unsaved",
+    saveStateSaving: "Saving",
     saveStateAutosaving: "Autosaving",
     saveStateConflict: "Conflict",
     saveStateError: "Error",
@@ -194,6 +196,7 @@ export const zhCN: UiMessages = {
     saveState: "保存状态",
     saveStateSaved: "已保存",
     saveStateUnsaved: "未保存",
+    saveStateSaving: "保存中",
     saveStateAutosaving: "自动保存中",
     saveStateConflict: "冲突",
     saveStateError: "错误",

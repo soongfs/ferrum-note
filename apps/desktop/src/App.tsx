@@ -27,7 +27,7 @@ import {
 
 const INITIAL_DOC = `# FerrumNote\n\nStart writing your Markdown notes.`;
 
-type SaveState = "saved" | "unsaved" | "autosaving" | "conflict" | "error";
+type SaveState = "saved" | "unsaved" | "saving" | "autosaving" | "conflict" | "error";
 
 function App() {
   const [markdown, setMarkdown] = useState(INITIAL_DOC);
@@ -99,6 +99,8 @@ function App() {
         return messages.app.saveStateSaved;
       case "unsaved":
         return messages.app.saveStateUnsaved;
+      case "saving":
+        return messages.app.saveStateSaving;
       case "autosaving":
         return messages.app.saveStateAutosaving;
       case "conflict":
@@ -112,6 +114,7 @@ function App() {
     messages.app.saveStateAutosaving,
     messages.app.saveStateConflict,
     messages.app.saveStateError,
+    messages.app.saveStateSaving,
     messages.app.saveStateSaved,
     messages.app.saveStateUnsaved,
     saveState
@@ -120,9 +123,9 @@ function App() {
   const runtimeModeLabel = runtimeMode === "tauri" ? messages.app.modeTauri : messages.app.modeWeb;
 
   const loadDirectory = useCallback(
-    async (relativePath?: string) => {
+    async (relativePath?: string): Promise<boolean> => {
       if (!runtimeCapabilities.workspaceExplorer || !workspaceRootPath) {
-        return;
+        return false;
       }
 
       const target = (relativePath || "").trim();
@@ -139,8 +142,10 @@ function App() {
           ...current,
           [currentRelative]: nextEntries
         }));
+        return true;
       } catch (error) {
         setStatus(toStatus(messages.app.explorerLoadFailed, error));
+        return false;
       } finally {
         setLoadingDirectories((current) => current.filter((item) => item !== target));
       }
@@ -209,8 +214,10 @@ function App() {
     }
 
     const targets = Array.from(new Set(["", ...expandedDirectories]));
-    await Promise.all(targets.map((target) => loadDirectory(target || undefined)));
-    setStatus(messages.app.explorerRefreshed);
+    const results = await Promise.all(targets.map((target) => loadDirectory(target || undefined)));
+    if (results.every(Boolean)) {
+      setStatus(messages.app.explorerRefreshed);
+    }
   }
 
   async function openFromExplorer(entry: WorkspaceEntry) {
@@ -269,7 +276,7 @@ function App() {
     }
 
     try {
-      setSaveState("autosaving");
+      setSaveState("saving");
       const saved = await saveFile(activePath, markdown, version);
       if (saved.conflict) {
         setStatus(messages.app.saveConflict);
@@ -300,7 +307,7 @@ function App() {
     }
 
     try {
-      setSaveState("autosaving");
+      setSaveState("saving");
       const saved = await saveAsFile(path.trim(), markdown);
       setActivePath(saved.path);
       setVersion(saved.version);

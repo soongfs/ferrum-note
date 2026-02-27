@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -339,12 +339,22 @@ fn resolve_workspace_relative_path(
         return Err(FsError::InvalidRelativePath(relative.to_string()));
     }
 
-    let candidate = root.join(relative_path);
+    let normalized_relative = normalize_relative_path(relative)?;
+    if normalized_relative.as_os_str().is_empty() {
+        return Ok(root.to_path_buf());
+    }
+
+    let candidate = root.join(normalized_relative);
+    if !candidate.exists() {
+        return Err(FsError::FileNotFound(candidate.display().to_string()));
+    }
+
     let normalized = candidate.canonicalize().map_err(FsError::Io)?;
     if !normalized.starts_with(root) {
         return Err(FsError::OutOfWorkspace(normalized.display().to_string()));
     }
-    Ok(normalized)
+
+    Ok(candidate)
 }
 
 fn relative_path_string(root: &Path, path: &Path) -> Result<String, FsError> {
@@ -374,4 +384,25 @@ fn entry_kind_rank(kind: &WorkspaceEntryKind) -> u8 {
         WorkspaceEntryKind::Directory => 0,
         WorkspaceEntryKind::Markdown => 1,
     }
+}
+
+fn normalize_relative_path(relative: &str) -> Result<PathBuf, FsError> {
+    let mut normalized = PathBuf::new();
+
+    for component in Path::new(relative).components() {
+        match component {
+            Component::CurDir => {}
+            Component::Normal(value) => normalized.push(value),
+            Component::ParentDir => {
+                if !normalized.pop() {
+                    return Err(FsError::OutOfWorkspace(relative.to_string()));
+                }
+            }
+            Component::RootDir | Component::Prefix(_) => {
+                return Err(FsError::InvalidRelativePath(relative.to_string()));
+            }
+        }
+    }
+
+    Ok(normalized)
 }

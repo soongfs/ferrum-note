@@ -45,6 +45,26 @@ pnpm install
 pnpm tauri build
 ```
 
+## Branding Asset Pipeline
+
+Logo source of truth:
+
+- `apps/desktop/branding/logo-source.png`
+
+Regenerate brand assets + Tauri icon set:
+
+```bash
+cd apps/desktop
+pnpm brand:prepare
+pnpm tauri icon src-tauri/icons/app-icon-source.png --output src-tauri/icons
+```
+
+You can override the input image path if needed:
+
+```bash
+pnpm brand:prepare -- /absolute/path/to/logo-source.png
+```
+
 ## Release Eligibility
 - Release candidates are cut from `master` only.
 - Required checks before stable tagging:
@@ -74,6 +94,21 @@ pnpm tauri build
 git tag -a v0.1.0 -m "chore(release): cut v0.1.0"
 git push origin v0.1.0
 ```
+
+## Windows Icon Verification
+
+After building and installing on Windows, verify:
+
+1. Taskbar icon shape is not squashed.
+2. Desktop shortcut icon matches the app icon.
+3. Start menu icon matches the app icon.
+
+If Windows still shows an old icon, clear icon cache and reinstall:
+
+1. Uninstall previous FerrumNote build.
+2. Delete `%LocalAppData%\\IconCache.db` (and `iconcache_*.db` files if present).
+3. Restart Windows Explorer or reboot.
+4. Reinstall the latest build artifact.
 
 ## Repository Rename (`FerrumNote` -> `ferrum-note`)
 1. Rename the repository in GitHub Settings.

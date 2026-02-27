@@ -55,4 +55,14 @@ describe("markdown shortcut commands", () => {
     const transaction = applyEnterBehavior(state);
     expect(transaction).toBeNull();
   });
+
+  it("keeps scanning when fenced content contains triple-backtick-prefixed text", () => {
+    const state = EditorState.create({
+      doc: "```python\n```javascript\nprint(1)\n```",
+      selection: { anchor: 9 }
+    });
+
+    const transaction = applyEnterBehavior(state);
+    expect(transaction).toBeNull();
+  });
 });

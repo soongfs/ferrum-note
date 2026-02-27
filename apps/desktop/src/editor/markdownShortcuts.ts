@@ -94,10 +94,6 @@ function hasClosingFenceBelow(state: EditorState, lineNumber: number): boolean {
     if (text === "```") {
       return true;
     }
-
-    if (text.startsWith("```")) {
-      return false;
-    }
   }
 
   return false;

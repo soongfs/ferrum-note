@@ -1,8 +1,23 @@
+<div align="center">
+
 # FerrumNote
+
+**A modern, lightweight, desktop-first Markdown editor**
+
+*Inspired by Typora · Powered by Rust*
+
+[![Version](https://img.shields.io/badge/version-0.1.0--alpha.1-blue.svg)](https://github.com/soongfs/ferrum-note/releases)
+[![Tauri](https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri&logoColor=white)](https://v2.tauri.app/)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![Rust](https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+
+</div>
 
 [中文说明](./README.zh-CN.md)
 
-FerrumNote is a Rust + Tauri + TipTap Markdown editor focused on desktop-first writing workflows.
+FerrumNote is a Rust + Tauri + CodeMirror Markdown editor focused on desktop-first writing workflows.
+Inspired by Typora; FerrumNote is an independent project and is not affiliated with Typora.
 
 ## Highlights
 

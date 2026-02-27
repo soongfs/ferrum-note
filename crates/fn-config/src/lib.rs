@@ -13,6 +13,7 @@ pub struct AppConfig {
     pub line_width_hint: u16,
     pub ui_language: String,
     pub show_debug_panels: bool,
+    pub workspace_root: Option<String>,
 }
 
 impl Default for AppConfig {
@@ -25,6 +26,7 @@ impl Default for AppConfig {
             line_width_hint: 88,
             ui_language: "en".to_string(),
             show_debug_panels: false,
+            workspace_root: None,
         }
     }
 }
@@ -38,6 +40,7 @@ struct PartialConfig {
     line_width_hint: Option<u16>,
     ui_language: Option<String>,
     show_debug_panels: Option<bool>,
+    workspace_root: Option<String>,
 }
 
 #[derive(Debug, Error)]
@@ -46,8 +49,12 @@ pub enum ConfigError {
     Io(#[from] std::io::Error),
     #[error("toml parse error: {0}")]
     Parse(#[from] toml::de::Error),
+    #[error("toml serialize error: {0}")]
+    Serialize(#[from] toml::ser::Error),
     #[error("home path not available")]
     HomeUnavailable,
+    #[error("invalid workspace root: {0}")]
+    InvalidWorkspaceRoot(String),
 }
 
 pub fn load() -> Result<AppConfig, ConfigError> {
@@ -82,11 +89,14 @@ pub fn write_default_if_missing() -> Result<PathBuf, ConfigError> {
         fs::create_dir_all(parent)?;
     }
 
-    let content = toml::to_string_pretty(&AppConfig::default())
-        .expect("default config serialization should never fail");
-    fs::write(&path, content)?;
+    write_to_path(&path, &AppConfig::default())?;
 
     Ok(path)
+}
+
+pub fn set_workspace_root(path: &str) -> Result<AppConfig, ConfigError> {
+    let config_path = default_config_path()?;
+    set_workspace_root_at_path(path, &config_path)
 }
 
 pub fn default_config_path() -> Result<PathBuf, ConfigError> {
@@ -105,5 +115,94 @@ fn merge_with_default(partial: PartialConfig) -> AppConfig {
         line_width_hint: partial.line_width_hint.unwrap_or(defaults.line_width_hint),
         ui_language: partial.ui_language.unwrap_or(defaults.ui_language),
         show_debug_panels: partial.show_debug_panels.unwrap_or(defaults.show_debug_panels),
+        workspace_root: partial
+            .workspace_root
+            .and_then(|root| if root.trim().is_empty() { None } else { Some(root) })
+            .or(defaults.workspace_root),
+    }
+}
+
+fn set_workspace_root_at_path<P: AsRef<Path>>(
+    workspace_path: &str,
+    config_path: P,
+) -> Result<AppConfig, ConfigError> {
+    if workspace_path.trim().is_empty() {
+        return Err(ConfigError::InvalidWorkspaceRoot("workspace root is empty".to_string()));
+    }
+
+    let workspace = PathBuf::from(workspace_path);
+    if !workspace.exists() {
+        return Err(ConfigError::InvalidWorkspaceRoot(format!(
+            "workspace root does not exist: {}",
+            workspace.display()
+        )));
+    }
+    if !workspace.is_dir() {
+        return Err(ConfigError::InvalidWorkspaceRoot(format!(
+            "workspace root is not a directory: {}",
+            workspace.display()
+        )));
+    }
+
+    let canonical = workspace.canonicalize()?;
+    let config_path = config_path.as_ref();
+    let mut config = load_from_path(config_path)?;
+    config.workspace_root = Some(canonical.display().to_string());
+    write_to_path(config_path, &config)?;
+    Ok(config)
+}
+
+fn write_to_path(path: &Path, config: &AppConfig) -> Result<(), ConfigError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let content = toml::to_string_pretty(config)?;
+    fs::write(path, content)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn set_workspace_root_persists_to_config_file() {
+        let temp = tempdir().expect("temp dir should be created");
+        let workspace = temp.path().join("workspace");
+        let config_path = temp.path().join(".ferrumnote").join("config.toml");
+        fs::create_dir_all(&workspace).expect("workspace should be created");
+
+        let saved = set_workspace_root_at_path(
+            workspace.to_str().expect("workspace path must be utf-8"),
+            &config_path,
+        )
+        .expect("workspace root should be saved");
+
+        let expected = workspace
+            .canonicalize()
+            .expect("canonical workspace path should resolve")
+            .display()
+            .to_string();
+        assert_eq!(saved.workspace_root, Some(expected.clone()));
+
+        let loaded = load_from_path(&config_path).expect("config should reload");
+        assert_eq!(loaded.workspace_root, Some(expected));
+    }
+
+    #[test]
+    fn set_workspace_root_rejects_missing_directory() {
+        let temp = tempdir().expect("temp dir should be created");
+        let missing = temp.path().join("missing");
+        let config_path = temp.path().join(".ferrumnote").join("config.toml");
+
+        let err = set_workspace_root_at_path(
+            missing.to_str().expect("missing path must be utf-8"),
+            &config_path,
+        )
+        .expect_err("missing path should be rejected");
+
+        assert!(matches!(err, ConfigError::InvalidWorkspaceRoot(_)));
     }
 }

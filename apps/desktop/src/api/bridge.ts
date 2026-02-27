@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AppConfig,
   ExportResponse,
+  ListWorkspaceEntriesResponse,
   OpenFileResponse,
   SaveFileResponse,
   WatchStartedResponse
@@ -68,4 +69,27 @@ export async function loadAppConfig(): Promise<AppConfig> {
     return WEB_DEFAULT_CONFIG;
   }
   return invoke<AppConfig>("load_app_config");
+}
+
+export async function setWorkspaceRoot(path: string): Promise<AppConfig> {
+  ensureCapability("workspaceExplorer", "set workspace root");
+  return invoke<AppConfig>("set_workspace_root", { path });
+}
+
+export async function listWorkspaceEntries(
+  relativePath?: string
+): Promise<ListWorkspaceEntriesResponse> {
+  ensureCapability("workspaceExplorer", "browse workspace");
+  return invoke<ListWorkspaceEntriesResponse>("list_workspace_entries", {
+    relativePath: relativePath ?? null
+  });
+}
+
+export async function pickWorkspaceDirectory(): Promise<string | null> {
+  ensureCapability("workspaceExplorer", "open folder");
+  const input = window.prompt("Enter workspace directory path", "");
+  if (!input || !input.trim()) {
+    return null;
+  }
+  return input.trim();
 }

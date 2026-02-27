@@ -39,3 +39,26 @@ pub struct EditorSyncPayload {
     pub dirty: bool,
     pub changed_blocks: Vec<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkspaceEntryKind {
+    Directory,
+    Markdown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorkspaceEntry {
+    pub name: String,
+    pub relative_path: String,
+    pub absolute_path: String,
+    pub kind: WorkspaceEntryKind,
+    pub modified_at: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ListWorkspaceEntriesResponse {
+    pub root_path: String,
+    pub current_relative_path: String,
+    pub entries: Vec<WorkspaceEntry>,
+}

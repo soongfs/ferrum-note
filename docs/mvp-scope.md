@@ -2,6 +2,7 @@
 
 ## In Scope
 - Open/save/save-as Markdown files
+- Open Folder workspace selection + workspace explorer
 - Typora-style editing with TipTap
 - Undo/redo and keyboard shortcuts
 - Find/replace in current document
@@ -9,18 +10,19 @@
 - HTML/PDF export
 - Cross-platform packaging (Windows/macOS/Linux)
 - Runtime capability split:
-  - `tauri` mode: full desktop features (file IO/export/watch)
-  - `web` mode: editing/search/replace only, desktop-only actions disabled with notice
+  - `tauri` mode: full desktop features (file IO/export/watch/explorer)
+  - `web` mode: editing/search/replace/status only, desktop-only actions disabled with notice
 
 ## Out of Scope
 - Cloud sync
 - Real-time collaboration
 - Plugin marketplace
-- Multi-document tabs and workspace explorer
+- Multi-document tabs
 
 ## Acceptance Baseline
 - Can open and edit large Markdown files (1MB, 5MB, 20MB)
 - Round-trip keeps heading/list/blockquote/code/link semantics
 - Conflict detection when file changes externally
 - Exported HTML/PDF preserves structure and code blocks
+- Workspace explorer shows directories + Markdown files only and opens files correctly
 - Browser mode (`pnpm dev`) does not call desktop-only commands and clearly shows degraded capabilities

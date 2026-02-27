@@ -2,8 +2,16 @@ export type UiMessages = {
   app: {
     title: string;
     subtitle: string;
-    filePathPlaceholder: string;
-    open: string;
+    openFolder: string;
+    refresh: string;
+    explorerTitle: string;
+    workspace: string;
+    workspaceUnset: string;
+    openFolderHint: string;
+    explorerEmpty: string;
+    explorerRefreshed: string;
+    explorerLoadFailed: string;
+    workspaceSetFailed: string;
     save: string;
     saveAs: string;
     exportHtml: string;
@@ -15,12 +23,10 @@ export type UiMessages = {
     matches: string;
     status: string;
     path: string;
-    version: string;
     autosave: string;
     desktopModeNotice: string;
     debugToggle: string;
     debugPayloadTitle: string;
-    enterPathHint: string;
     saveNeedFileHint: string;
     openFailed: string;
     saveFailed: string;
@@ -36,6 +42,19 @@ export type UiMessages = {
     saveConflict: string;
     ready: string;
     unopened: string;
+    saveState: string;
+    saveStateSaved: string;
+    saveStateUnsaved: string;
+    saveStateSaving: string;
+    saveStateAutosaving: string;
+    saveStateConflict: string;
+    saveStateError: string;
+    wordCount: string;
+    characterCount: string;
+    lineCount: string;
+    runtime: string;
+    modeTauri: string;
+    modeWeb: string;
   };
   editor: {
     placeholder: string;
@@ -57,9 +76,17 @@ export type UiMessages = {
 export const en: UiMessages = {
   app: {
     title: "FerrumNote",
-    subtitle: "Rust + Tauri + TipTap Markdown Editor",
-    filePathPlaceholder: "Path to .md file, e.g. /home/user/notes/today.md",
-    open: "Open",
+    subtitle: "Rust + Tauri + TipTap Markdown Workspace",
+    openFolder: "Open Folder",
+    refresh: "Refresh",
+    explorerTitle: "Explorer",
+    workspace: "Workspace",
+    workspaceUnset: "Not set",
+    openFolderHint: "Open a folder to browse Markdown files.",
+    explorerEmpty: "No folders or Markdown files found.",
+    explorerRefreshed: "Explorer refreshed.",
+    explorerLoadFailed: "Explorer load failed",
+    workspaceSetFailed: "Open folder failed",
     save: "Save",
     saveAs: "Save As",
     exportHtml: "Export HTML",
@@ -71,14 +98,12 @@ export const en: UiMessages = {
     matches: "Matches",
     status: "Status",
     path: "Path",
-    version: "Version",
     autosave: "Autosave",
     desktopModeNotice:
-      "Desktop-only features are disabled in browser mode. Use `pnpm tauri dev` for full file and export functions.",
+      "Desktop-only features are disabled in browser mode. Use `pnpm tauri dev` for full file and explorer functions.",
     debugToggle: "Show Debug Payload",
     debugPayloadTitle: "Editor Sync Payload",
-    enterPathHint: "Enter a file path first.",
-    saveNeedFileHint: "Open a file first or use Save As.",
+    saveNeedFileHint: "Open a file in Explorer first or use Save As.",
     openFailed: "Open failed",
     saveFailed: "Save failed",
     saveAsFailed: "Save As failed",
@@ -92,7 +117,20 @@ export const en: UiMessages = {
     autosaveFailed: "Autosave failed",
     saveConflict: "Save conflict: file changed externally, reload required.",
     ready: "Ready",
-    unopened: "Not opened"
+    unopened: "Not opened",
+    saveState: "Save State",
+    saveStateSaved: "Saved",
+    saveStateUnsaved: "Unsaved",
+    saveStateSaving: "Saving",
+    saveStateAutosaving: "Autosaving",
+    saveStateConflict: "Conflict",
+    saveStateError: "Error",
+    wordCount: "Words",
+    characterCount: "Characters",
+    lineCount: "Lines",
+    runtime: "Runtime",
+    modeTauri: "Desktop",
+    modeWeb: "Browser"
   },
   editor: {
     placeholder: "Start writing Markdown...",
@@ -114,9 +152,17 @@ export const en: UiMessages = {
 export const zhCN: UiMessages = {
   app: {
     title: "FerrumNote",
-    subtitle: "Rust + Tauri + TipTap Markdown 编辑器",
-    filePathPlaceholder: "输入 .md 路径，例如 /home/user/notes/today.md",
-    open: "打开",
+    subtitle: "Rust + Tauri + TipTap Markdown 工作区",
+    openFolder: "打开目录",
+    refresh: "刷新",
+    explorerTitle: "资源管理器",
+    workspace: "工作区",
+    workspaceUnset: "未设置",
+    openFolderHint: "请先打开目录以浏览 Markdown 文件。",
+    explorerEmpty: "当前目录下没有可显示的目录或 Markdown 文件。",
+    explorerRefreshed: "资源管理器已刷新。",
+    explorerLoadFailed: "资源管理器加载失败",
+    workspaceSetFailed: "打开目录失败",
     save: "保存",
     saveAs: "另存为",
     exportHtml: "导出 HTML",
@@ -128,13 +174,11 @@ export const zhCN: UiMessages = {
     matches: "匹配",
     status: "状态",
     path: "路径",
-    version: "版本",
     autosave: "自动保存",
     desktopModeNotice: "浏览器模式下已禁用桌面专属功能，请使用 `pnpm tauri dev`。",
     debugToggle: "显示调试载荷",
     debugPayloadTitle: "编辑器同步载荷",
-    enterPathHint: "请先输入路径。",
-    saveNeedFileHint: "请先打开文件或使用另存为。",
+    saveNeedFileHint: "请先在资源管理器中打开文件，或使用另存为。",
     openFailed: "打开失败",
     saveFailed: "保存失败",
     saveAsFailed: "另存为失败",
@@ -148,7 +192,20 @@ export const zhCN: UiMessages = {
     autosaveFailed: "自动保存失败",
     saveConflict: "保存冲突：文件已被外部修改。",
     ready: "就绪",
-    unopened: "未打开"
+    unopened: "未打开",
+    saveState: "保存状态",
+    saveStateSaved: "已保存",
+    saveStateUnsaved: "未保存",
+    saveStateSaving: "保存中",
+    saveStateAutosaving: "自动保存中",
+    saveStateConflict: "冲突",
+    saveStateError: "错误",
+    wordCount: "字数",
+    characterCount: "字符数",
+    lineCount: "行数",
+    runtime: "运行时",
+    modeTauri: "桌面",
+    modeWeb: "浏览器"
   },
   editor: {
     placeholder: "开始输入 Markdown...",

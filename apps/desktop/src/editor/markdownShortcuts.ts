@@ -62,12 +62,17 @@ export function applyEnterBehavior(state: EditorState): Transaction | null {
     const normalized = normalizeCodeLanguage(backtickFenceMatch[1]);
     const language = normalized === "plaintext" ? "" : normalized;
     const replacement = `\`\`\`${language}`;
+    const hasExistingClosingFence = hasClosingFenceBelow(state, line.number);
+
+    if (hasExistingClosingFence) {
+      return null;
+    }
 
     return state.update({
       changes: {
         from: line.from,
         to: line.to,
-        insert: `${replacement}\n`
+        insert: `${replacement}\n\n\`\`\``
       },
       selection: {
         anchor: line.from + replacement.length + 1
@@ -77,6 +82,25 @@ export function applyEnterBehavior(state: EditorState): Transaction | null {
   }
 
   return null;
+}
+
+function hasClosingFenceBelow(state: EditorState, lineNumber: number): boolean {
+  for (let index = lineNumber + 1; index <= state.doc.lines; index += 1) {
+    const text = state.doc.line(index).text.trim();
+    if (!text) {
+      continue;
+    }
+
+    if (text === "```") {
+      return true;
+    }
+
+    if (text.startsWith("```")) {
+      return false;
+    }
+  }
+
+  return false;
 }
 
 function toggleWrap(state: EditorState, open: string, close: string): Transaction {

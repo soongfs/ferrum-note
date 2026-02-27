@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const appRoot = path.resolve(__dirname, "..");
 
-const defaultSource = path.join(appRoot, "src/assets/brand-wordmark.png");
+const defaultSource = path.join(appRoot, "branding/logo-source.png");
 const source = process.argv[2] || process.env.FERRUMNOTE_BRAND_SOURCE || defaultSource;
 
 const wordmarkOutput = path.join(appRoot, "src/assets/brand-wordmark.png");
@@ -21,6 +21,10 @@ if (!fs.existsSync(source)) {
   process.exit(1);
 }
 
+fs.mkdirSync(path.dirname(wordmarkOutput), { recursive: true });
+fs.mkdirSync(path.dirname(emblemOutput), { recursive: true });
+fs.mkdirSync(path.dirname(iconSourceOutput), { recursive: true });
+
 const image = await Jimp.read(source);
 const { width, height } = image.bitmap;
 const emblemSize = Math.min(width, height);
@@ -31,7 +35,7 @@ const emblemCrop = {
   h: emblemSize
 };
 
-const wordmark = image.clone().resize({ w: 920, h: 392 });
+const wordmark = image.clone().scaleToFit({ w: 920, h: 392 });
 await wordmark.write(wordmarkOutput);
 
 const emblem = image.clone().crop(emblemCrop).resize({ w: 512, h: 512 });

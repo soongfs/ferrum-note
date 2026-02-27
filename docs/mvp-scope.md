@@ -3,10 +3,12 @@
 ## In Scope
 - Open/save/save-as Markdown files
 - Open Folder workspace selection + workspace explorer
-- Typora-style editing with TipTap
-- Writer/Source mode switching (`Ctrl/Cmd+Shift+M`)
+- Typora-style editing with CodeMirror-first pipeline
+- Single Source toggle + `Ctrl/Cmd+Shift+M` mode switch
 - Source mode based on CodeMirror 6 (line numbers + wrapping)
-- Writer mode Markdown syntax lens (inline + core block markers editable)
+- Writer mode strict marker behavior:
+  - markers hidden outside active syntax ranges
+  - inline + core block markers visible and editable when cursor enters range
 - Undo/redo and keyboard shortcuts
 - Find/replace in current document
 - Autosave (default 1500ms)
@@ -30,4 +32,5 @@
 - Workspace explorer shows directories + Markdown files only and opens files correctly
 - Browser mode (`pnpm dev`) does not call desktop-only commands and clearly shows degraded capabilities
 - Writer/Source switch keeps Markdown content consistent with no data loss
+- `\`test\` + Enter` keeps inline code semantics and does not transform into fenced blocks
 - Fenced code blocks preserve language (`python`, `c`, etc.) and show visible syntax highlighting

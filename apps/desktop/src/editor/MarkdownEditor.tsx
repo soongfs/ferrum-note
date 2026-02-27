@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EditorContent, type Editor, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { common, createLowlight } from "lowlight";
+import "highlight.js/styles/github.css";
+import { FerrumCodeBlock } from "./FerrumCodeBlock";
+import { CODE_LANGUAGE_PRESETS, normalizeCodeLanguage } from "./codeLanguage";
 import { createMarkdownCodec } from "./markdownCodec";
+import { SourceEditor } from "./SourceEditor";
+import type { ActiveSyntaxLens, EditorMode } from "./types";
 
 type EditorLabels = {
   placeholder: string;
@@ -20,12 +24,20 @@ type EditorLabels = {
   undo: string;
   redo: string;
   language: string;
+  languagePlaceholder: string;
   shortcutHint: string;
+  sourceShortcutHint: string;
+  syntaxLens: string;
+  syntaxLensError: string;
 };
 
 type MarkdownEditorProps = {
   value: string;
+  sourceValue: string;
+  mode: EditorMode;
+  onModeChange: (next: EditorMode) => void;
   onChange: (next: string) => void;
+  onSourceChange: (next: string) => void;
   labels: EditorLabels;
 };
 
@@ -52,17 +64,75 @@ function ToolbarButton({
   );
 }
 
-export function MarkdownEditor({ value, onChange, labels }: MarkdownEditorProps) {
+export function MarkdownEditor({
+  value,
+  sourceValue,
+  mode,
+  onModeChange,
+  onChange,
+  onSourceChange,
+  labels
+}: MarkdownEditorProps) {
   const applyingExternalUpdate = useRef(false);
   const [codeLanguage, setCodeLanguage] = useState("plaintext");
+  const [activeSyntaxLens, setActiveSyntaxLens] = useState<ActiveSyntaxLens | null>(null);
+  const [syntaxLensError, setSyntaxLensError] = useState("");
+  const activeSyntaxLensRef = useRef<ActiveSyntaxLens | null>(null);
   const lowlight = useMemo(() => createLowlight(common), []);
+
+  const syncEditorUiState = useCallback(
+    (instance: Editor) => {
+      const attrs = instance.getAttributes("codeBlock");
+      const language = normalizeCodeLanguage(String(attrs.language || ""));
+      setCodeLanguage(language);
+
+      if (mode !== "writer") {
+        setActiveSyntaxLens(null);
+        setSyntaxLensError("");
+        return;
+      }
+
+      const { $from } = instance.state.selection;
+      if ($from.depth < 1) {
+        setActiveSyntaxLens(null);
+        return;
+      }
+
+      const topLevelDepth = 1;
+      const activeNode = $from.node(topLevelDepth);
+      const blockFrom = $from.start(topLevelDepth) - 1;
+      const blockTo = blockFrom + activeNode.nodeSize;
+      const codec = createMarkdownCodec(instance.schema);
+      const markdown = codec.serializeTopLevelNodes([activeNode]);
+
+      setActiveSyntaxLens((current) => {
+        if (
+          current &&
+          current.blockFrom === blockFrom &&
+          current.blockTo === blockTo &&
+          current.markdown === markdown &&
+          current.visible
+        ) {
+          return current;
+        }
+
+        return {
+          blockFrom,
+          blockTo,
+          markdown,
+          visible: true
+        };
+      });
+    },
+    [mode]
+  );
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         codeBlock: false
       }),
-      CodeBlockLowlight.configure({
+      FerrumCodeBlock.configure({
         lowlight
       }),
       Link.configure({ openOnClick: false }),
@@ -74,15 +144,22 @@ export function MarkdownEditor({ value, onChange, labels }: MarkdownEditorProps)
       applyingExternalUpdate.current = true;
       instance.commands.setContent(codec.parseMarkdown(value).toJSON(), false);
       applyingExternalUpdate.current = false;
+      syncEditorUiState(instance);
     },
     onUpdate({ editor: instance }) {
       if (applyingExternalUpdate.current) {
         return;
       }
+
       const codec = createMarkdownCodec(instance.schema);
       onChange(codec.serializeMarkdown(instance.state.doc));
+      syncEditorUiState(instance);
     }
   });
+
+  useEffect(() => {
+    activeSyntaxLensRef.current = activeSyntaxLens;
+  }, [activeSyntaxLens]);
 
   useEffect(() => {
     if (!editor) {
@@ -95,34 +172,121 @@ export function MarkdownEditor({ value, onChange, labels }: MarkdownEditorProps)
       applyingExternalUpdate.current = true;
       editor.commands.setContent(codec.parseMarkdown(value).toJSON(), false);
       applyingExternalUpdate.current = false;
+      syncEditorUiState(editor);
     }
-  }, [editor, value]);
+  }, [editor, syncEditorUiState, value]);
 
   useEffect(() => {
     if (!editor) {
       return;
     }
 
-    const syncLanguage = () => {
-      const attrs = editor.getAttributes("codeBlock");
-      if (attrs.language) {
-        setCodeLanguage(attrs.language as string);
-      }
+    const handleSelection = () => {
+      syncEditorUiState(editor);
     };
 
-    editor.on("selectionUpdate", syncLanguage);
+    editor.on("selectionUpdate", handleSelection);
+    editor.on("focus", handleSelection);
+
     return () => {
-      editor.off("selectionUpdate", syncLanguage);
+      editor.off("selectionUpdate", handleSelection);
+      editor.off("focus", handleSelection);
     };
-  }, [editor]);
+  }, [editor, syncEditorUiState]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    syncEditorUiState(editor);
+  }, [editor, mode, syncEditorUiState]);
+
+  useEffect(() => {
+    const onToggleMode = (event: KeyboardEvent) => {
+      const isToggleKey =
+        (event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "m";
+      if (!isToggleKey) {
+        return;
+      }
+
+      event.preventDefault();
+      onModeChange(mode === "writer" ? "source" : "writer");
+    };
+
+    window.addEventListener("keydown", onToggleMode);
+    return () => {
+      window.removeEventListener("keydown", onToggleMode);
+    };
+  }, [mode, onModeChange]);
+
+  const applySyntaxLensMarkdown = useCallback(
+    (nextMarkdown: string) => {
+      setActiveSyntaxLens((current) =>
+        current
+          ? {
+              ...current,
+              markdown: nextMarkdown
+            }
+          : current
+      );
+
+      if (!editor) {
+        return;
+      }
+
+      const lens = activeSyntaxLensRef.current;
+      if (!lens || mode !== "writer") {
+        return;
+      }
+
+      const codec = createMarkdownCodec(editor.schema);
+      let replacementNodes;
+
+      try {
+        replacementNodes = codec.parseMarkdownToTopLevelNodes(nextMarkdown);
+      } catch {
+        setSyntaxLensError(labels.syntaxLensError);
+        return;
+      }
+
+      if (replacementNodes.length !== 1) {
+        setSyntaxLensError(labels.syntaxLensError);
+        return;
+      }
+
+      applyingExternalUpdate.current = true;
+      const transaction = editor.state.tr.replaceWith(
+        lens.blockFrom,
+        lens.blockTo,
+        replacementNodes[0]
+      );
+      editor.view.dispatch(transaction);
+      applyingExternalUpdate.current = false;
+
+      setSyntaxLensError("");
+      onChange(codec.serializeMarkdown(editor.state.doc));
+      syncEditorUiState(editor);
+    },
+    [editor, labels.syntaxLensError, mode, onChange, syncEditorUiState]
+  );
 
   if (!editor) {
     return <div className="editor-loading">{labels.loading}</div>;
   }
 
+  if (mode === "source") {
+    return (
+      <section className="editor-shell" data-testid="editor-mode-source">
+        <SourceEditor value={sourceValue} onChange={onSourceChange} />
+        <p className="editor-shortcut-hint">{labels.sourceShortcutHint}</p>
+      </section>
+    );
+  }
+
   return (
-    <section className="editor-shell">
-      <div className="editor-toolbar" aria-label="文本工具栏">
+    <section className="editor-shell" data-testid="editor-mode-writer">
+      <div className="editor-toolbar" aria-label="Writer toolbar">
         <ToolbarButton
           label={labels.bold}
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -145,31 +309,34 @@ export function MarkdownEditor({ value, onChange, labels }: MarkdownEditorProps)
         />
         <ToolbarButton
           label={labels.codeBlock}
-          onClick={() =>
+          onClick={() => {
+            const normalizedLanguage = normalizeCodeLanguage(codeLanguage);
+            setCodeLanguage(normalizedLanguage);
             editor
               .chain()
               .focus()
               .toggleCodeBlock({
-                language: codeLanguage
+                language: normalizedLanguage
               })
-              .run()
-          }
+              .run();
+          }}
           active={editor.isActive("codeBlock")}
         />
         <label className="code-language-select-label">
           {labels.language}
-          <select
-            className="code-language-select"
+          <input
+            className="code-language-input"
             value={codeLanguage}
-            onChange={(event) => setCodeLanguage(event.target.value)}
-          >
-            <option value="plaintext">Plain Text</option>
-            <option value="rust">Rust</option>
-            <option value="typescript">TypeScript</option>
-            <option value="javascript">JavaScript</option>
-            <option value="bash">Bash</option>
-            <option value="json">JSON</option>
-          </select>
+            placeholder={labels.languagePlaceholder}
+            onChange={(event) => setCodeLanguage(normalizeCodeLanguage(event.target.value))}
+            list="code-language-options"
+            data-testid="code-language-input"
+          />
+          <datalist id="code-language-options">
+            {CODE_LANGUAGE_PRESETS.map((language) => (
+              <option key={language} value={language} />
+            ))}
+          </datalist>
         </label>
         <ToolbarButton
           label={labels.bulletList}
@@ -192,7 +359,22 @@ export function MarkdownEditor({ value, onChange, labels }: MarkdownEditorProps)
           disabled={!editor.can().redo()}
         />
       </div>
+
       <EditorContent className="editor-content" editor={editor} />
+
+      {activeSyntaxLens?.visible ? (
+        <section className="syntax-lens" data-testid="syntax-lens-panel">
+          <div className="syntax-lens-header">{labels.syntaxLens}</div>
+          <textarea
+            className="syntax-lens-input"
+            value={activeSyntaxLens.markdown}
+            onChange={(event) => applySyntaxLensMarkdown(event.target.value)}
+            data-testid="syntax-lens-input"
+          />
+          {syntaxLensError ? <p className="syntax-lens-error">{syntaxLensError}</p> : null}
+        </section>
+      ) : null}
+
       <p className="editor-shortcut-hint">{labels.shortcutHint}</p>
     </section>
   );

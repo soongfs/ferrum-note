@@ -24,4 +24,5 @@ Commit body must include the following sections:
 ## Merge Strategy
 - Use `Squash and merge` into `master`
 - PR title must satisfy Conventional Commits
+- Use `.github/pull_request_template.md` for `Why / What / Test` and evidence sections
 - CI must be green before merge

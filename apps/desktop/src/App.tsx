@@ -20,10 +20,7 @@ import {
 } from "./runtime/capabilities";
 import { countMatches, replaceAll, replaceNext } from "./search/ops";
 import type { EditorSyncPayload, WorkspaceEntry } from "./types/contracts";
-import {
-  calculateDocumentStats,
-  sortWorkspaceEntriesForView
-} from "./workspace/viewModel";
+import { calculateDocumentStats } from "./workspace/viewModel";
 
 const INITIAL_DOC = `# FerrumNote\n\nStart writing your Markdown notes.`;
 
@@ -135,12 +132,11 @@ function App() {
 
       try {
         const listed = await listWorkspaceEntries(target || undefined);
-        const nextEntries = sortWorkspaceEntriesForView(listed.entries);
         const currentRelative = listed.current_relative_path || "";
 
         setDirectoryEntries((current) => ({
           ...current,
-          [currentRelative]: nextEntries
+          [currentRelative]: listed.entries
         }));
         return true;
       } catch (error) {

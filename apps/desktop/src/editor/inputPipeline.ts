@@ -2,6 +2,11 @@ import type { EngineCommandString, WriterInputIntent } from "../engine/types";
 
 const encoder = new TextEncoder();
 
+export type WriterSelectionRange = {
+  start_utf8: number;
+  end_utf8: number;
+};
+
 export function resolveWriterIntent(inputType: string): WriterInputIntent | null {
   switch (inputType) {
     case "insertText":
@@ -97,4 +102,39 @@ export function nextUtf8Boundary(markdown: string, utf8Offset: number): number {
     }
   }
   return boundary;
+}
+
+export function resolveDeleteRange(
+  markdown: string,
+  selection: WriterSelectionRange,
+  direction: "backward" | "forward"
+): { startUtf8: number; endUtf8: number } | null {
+  if (selection.start_utf8 !== selection.end_utf8) {
+    return {
+      startUtf8: selection.start_utf8,
+      endUtf8: selection.end_utf8
+    };
+  }
+
+  if (direction === "backward") {
+    const startUtf8 = previousUtf8Boundary(markdown, selection.start_utf8);
+    if (startUtf8 === selection.end_utf8) {
+      return null;
+    }
+
+    return {
+      startUtf8,
+      endUtf8: selection.end_utf8
+    };
+  }
+
+  const endUtf8 = nextUtf8Boundary(markdown, selection.end_utf8);
+  if (endUtf8 === selection.start_utf8) {
+    return null;
+  }
+
+  return {
+    startUtf8: selection.start_utf8,
+    endUtf8
+  };
 }

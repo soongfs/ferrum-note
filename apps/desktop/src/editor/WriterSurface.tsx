@@ -1,12 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { EngineCommandString, EngineSnapshot, RenderBlockVM } from "../engine/types";
 import { readDomSelection, serializeWriterMarkdown } from "./domMapping";
-import {
-  nextUtf8Boundary,
-  previousUtf8Boundary,
-  resolveWriterIntent,
-  resolveWriterShortcut
-} from "./inputPipeline";
+import { resolveDeleteRange, resolveWriterIntent, resolveWriterShortcut } from "./inputPipeline";
 import { restoreDomSelection } from "./selectionMapping";
 
 const encoder = new TextEncoder();
@@ -151,20 +146,20 @@ export function WriterSurface({
         }
         case "delete_backward": {
           event.preventDefault();
-          const start =
-            offsets.start_utf8 === offsets.end_utf8
-              ? previousUtf8Boundary(snapshot.markdown, offsets.start_utf8)
-              : offsets.start_utf8;
-          onReplaceText(start, offsets.end_utf8, "");
+          const range = resolveDeleteRange(snapshot.markdown, offsets, "backward");
+          if (!range) {
+            return;
+          }
+          onReplaceText(range.startUtf8, range.endUtf8, "");
           return;
         }
         case "delete_forward": {
           event.preventDefault();
-          const end =
-            offsets.start_utf8 === offsets.end_utf8
-              ? nextUtf8Boundary(snapshot.markdown, offsets.end_utf8)
-              : offsets.end_utf8;
-          onReplaceText(offsets.start_utf8, end, "");
+          const range = resolveDeleteRange(snapshot.markdown, offsets, "forward");
+          if (!range) {
+            return;
+          }
+          onReplaceText(range.startUtf8, range.endUtf8, "");
           return;
         }
         case "history_undo":
@@ -181,20 +176,21 @@ export function WriterSurface({
           return;
         }
         case "insert_from_paste":
+          event.preventDefault();
+          return;
         default:
           return;
       }
     };
 
     const onPaste = (event: ClipboardEvent) => {
-      const text = event.clipboardData?.getData("text/plain");
       const offsets = readDomSelection(root);
-      if (!text || !offsets) {
+      if (!offsets) {
         return;
       }
 
       event.preventDefault();
-      onReplaceText(offsets.start_utf8, offsets.end_utf8, text);
+      onReplaceText(offsets.start_utf8, offsets.end_utf8, event.clipboardData?.getData("text/plain") ?? "");
     };
 
     const onCompositionStart = () => {

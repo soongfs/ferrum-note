@@ -46,6 +46,19 @@ async function pastePlainTextIntoWriter(page: Page, text: string) {
   }, text);
 }
 
+async function pasteEmptyPlainTextIntoWriter(page: Page) {
+  await page.getByTestId("writer-surface").evaluate((root) => {
+    const data = new DataTransfer();
+    const pasteEvent = new ClipboardEvent("paste", {
+      clipboardData: data,
+      bubbles: true,
+      cancelable: true
+    });
+
+    root.dispatchEvent(pasteEvent);
+  });
+}
+
 test.describe("FerrumNote web mode", () => {
   test("shows desktop-only banner and disables desktop actions", async ({ page }) => {
     await page.goto("/");
@@ -167,6 +180,21 @@ test.describe("FerrumNote web mode", () => {
     await page.getByTestId("mode-source-toggle-button").click();
     const sourceText = await page.locator(".cm-content").innerText();
     expect(sourceText).toContain("alpha 第一行\n第二行");
+  });
+
+  test("does not delete the current selection when paste has no plain-text payload", async ({
+    page
+  }) => {
+    await page.goto("/");
+
+    await setSourceMarkdown(page, "alpha beta");
+    await page.getByTestId("writer-surface").click();
+    await page.keyboard.press("Control+A");
+    await pasteEmptyPlainTextIntoWriter(page);
+
+    await page.getByTestId("mode-source-toggle-button").click();
+    const sourceText = await page.locator(".cm-content").innerText();
+    expect(sourceText).toContain("alpha beta");
   });
 
   test("keeps the caret in the new line after pressing Enter in multibyte text", async ({ page }) => {

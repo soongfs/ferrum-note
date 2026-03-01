@@ -250,10 +250,15 @@ export function WriterSurface({
         return;
       }
 
+      const text = event.clipboardData?.getData("text/plain") ?? "";
       event.preventDefault();
+      if (text.length === 0) {
+        return;
+      }
+
       rememberSelection(offsets);
       requestSelectionRestore();
-      onReplaceText(offsets.start_utf8, offsets.end_utf8, event.clipboardData?.getData("text/plain") ?? "");
+      onReplaceText(offsets.start_utf8, offsets.end_utf8, text);
     };
 
     const onCompositionStart = () => {

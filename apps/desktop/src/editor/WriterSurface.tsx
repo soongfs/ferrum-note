@@ -38,21 +38,48 @@ export function WriterSurface({
 }: WriterSurfaceProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const isComposing = useRef(false);
+  const selectionSyncSuppressions = useRef(0);
+
+  const suppressSelectionSync = () => {
+    selectionSyncSuppressions.current += 1;
+    window.setTimeout(() => {
+      selectionSyncSuppressions.current = Math.max(0, selectionSyncSuppressions.current - 1);
+    }, 0);
+  };
 
   useLayoutEffect(() => {
     if (!rootRef.current || !snapshot) {
       return;
     }
 
-    const selection = window.getSelection();
-    if (document.activeElement === rootRef.current || rootRef.current.contains(selection?.anchorNode ?? null)) {
-      restoreDomSelection(rootRef.current, snapshot.selection);
+    if (isComposing.current) {
+      return;
     }
+
+    const selection = window.getSelection();
+    if (
+      document.activeElement !== rootRef.current &&
+      !rootRef.current.contains(selection?.anchorNode ?? null)
+    ) {
+      return;
+    }
+
+    const offsets = readDomSelection(rootRef.current);
+    if (offsets && !hasSelectionChanged(offsets, snapshot.selection)) {
+      return;
+    }
+
+    suppressSelectionSync();
+    restoreDomSelection(rootRef.current, snapshot.selection);
   }, [snapshot]);
 
   useEffect(() => {
     const onSelectionChange = () => {
       if (!rootRef.current || !snapshot) {
+        return;
+      }
+
+      if (isComposing.current || selectionSyncSuppressions.current > 0) {
         return;
       }
 
@@ -76,8 +103,33 @@ export function WriterSurface({
       return;
     }
 
+    const syncDomStateToEngine = () => {
+      const nextMarkdown = serializeWriterMarkdown(root, snapshot.markdown);
+      const offsets = readDomSelection(root);
+      const markdownChanged = nextMarkdown !== snapshot.markdown;
+      const selectionChanged = offsets && hasSelectionChanged(offsets, snapshot.selection);
+
+      if (!markdownChanged && !selectionChanged) {
+        return;
+      }
+
+      suppressSelectionSync();
+
+      if (markdownChanged) {
+        onSetMarkdown(nextMarkdown);
+      }
+
+      if (selectionChanged && offsets) {
+        onSetSelection(offsets.anchor_utf8, offsets.head_utf8);
+      }
+    };
+
     const onBeforeInput = (event: InputEvent) => {
-      if (isComposing.current) {
+      if (
+        isComposing.current ||
+        event.isComposing ||
+        event.inputType === "insertCompositionText"
+      ) {
         return;
       }
 
@@ -134,22 +186,6 @@ export function WriterSurface({
       }
     };
 
-    const onInput = () => {
-      if (!isComposing.current) {
-        return;
-      }
-
-      const nextMarkdown = serializeWriterMarkdown(root, snapshot.markdown);
-      if (nextMarkdown !== snapshot.markdown) {
-        onSetMarkdown(nextMarkdown);
-      }
-
-      const offsets = readDomSelection(root);
-      if (offsets && hasSelectionChanged(offsets, snapshot.selection)) {
-        onSetSelection(offsets.anchor_utf8, offsets.head_utf8);
-      }
-    };
-
     const onPaste = (event: ClipboardEvent) => {
       const text = event.clipboardData?.getData("text/plain");
       const offsets = readDomSelection(root);
@@ -166,28 +202,18 @@ export function WriterSurface({
     };
 
     const onCompositionEnd = () => {
-      const nextMarkdown = serializeWriterMarkdown(root, snapshot.markdown);
-      const offsets = readDomSelection(root);
       isComposing.current = false;
-
-      if (nextMarkdown !== snapshot.markdown) {
-        onSetMarkdown(nextMarkdown);
-      }
-
-      if (offsets && hasSelectionChanged(offsets, snapshot.selection)) {
-        onSetSelection(offsets.anchor_utf8, offsets.head_utf8);
-      }
+      suppressSelectionSync();
+      queueMicrotask(syncDomStateToEngine);
     };
 
     root.addEventListener("beforeinput", onBeforeInput);
-    root.addEventListener("input", onInput);
     root.addEventListener("paste", onPaste);
     root.addEventListener("compositionstart", onCompositionStart);
     root.addEventListener("compositionend", onCompositionEnd);
 
     return () => {
       root.removeEventListener("beforeinput", onBeforeInput);
-      root.removeEventListener("input", onInput);
       root.removeEventListener("paste", onPaste);
       root.removeEventListener("compositionstart", onCompositionStart);
       root.removeEventListener("compositionend", onCompositionEnd);

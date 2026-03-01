@@ -74,22 +74,28 @@ export function readDomSelection(root: HTMLElement): DomSelectionOffsets | null 
 
 export function serializeWriterMarkdown(root: HTMLElement, previousMarkdown: string): string {
   const blocks = Array.from(root.querySelectorAll<HTMLElement>("[data-block='true']"));
-  let cursor = 0;
+  let cursorUtf8 = 0;
   let nextMarkdown = "";
 
   for (const block of blocks) {
     const startUtf8 = Number(block.dataset.start ?? "0");
     const endUtf8 = Number(block.dataset.end ?? String(startUtf8));
-    nextMarkdown += previousMarkdown.slice(cursor, startUtf8);
+    nextMarkdown += sliceByUtf8Offsets(previousMarkdown, cursorUtf8, startUtf8);
 
     const leaf = block.querySelector<HTMLElement>("[data-leaf='true']");
     const blockText = leaf && leaf.dataset.empty === "true" ? "" : leaf?.textContent ?? "";
     nextMarkdown += blockText;
-    cursor = endUtf8;
+    cursorUtf8 = endUtf8;
   }
 
-  nextMarkdown += previousMarkdown.slice(cursor);
+  nextMarkdown += sliceByUtf8Offsets(previousMarkdown, cursorUtf8);
   return nextMarkdown;
+}
+
+export function sliceByUtf8Offsets(text: string, startUtf8: number, endUtf8?: number): string {
+  const startCodeUnits = codeUnitOffsetForUtf8(text, startUtf8);
+  const endCodeUnits = endUtf8 === undefined ? text.length : codeUnitOffsetForUtf8(text, endUtf8);
+  return text.slice(startCodeUnits, endCodeUnits);
 }
 
 function domPointToUtf8(root: HTMLElement, node: Node, offset: number): number | null {

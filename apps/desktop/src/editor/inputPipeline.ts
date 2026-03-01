@@ -96,5 +96,5 @@ export function nextUtf8Boundary(markdown: string, utf8Offset: number): number {
       return boundary;
     }
   }
-  return markdown.length;
+  return boundary;
 }

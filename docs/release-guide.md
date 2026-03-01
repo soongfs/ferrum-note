@@ -16,6 +16,16 @@
 
 ## Local Development
 
+### Engine WASM Regeneration
+
+If you change `crates/fn-engine` or `crates/fn-engine-wasm`, refresh the frontend package first:
+
+```bash
+cd apps/desktop
+pnpm engine:build
+```
+
+
 ### Desktop Mode (Tauri)
 
 ```bash

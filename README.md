@@ -2,7 +2,7 @@
 
 # FerrumNote
 
-**A modern, lightweight, desktop-first Markdown editor**
+**A desktop-first Markdown editor with a self-hosted Rust/WASM engine**
 
 *Inspired by Typora · Powered by Rust*
 
@@ -16,19 +16,17 @@
 
 [中文说明](./README.zh-CN.md)
 
-FerrumNote is a Rust + Tauri + CodeMirror Markdown editor focused on desktop-first writing workflows.
+FerrumNote is a Rust + Tauri desktop Markdown editor with a self-hosted editing engine.
 Inspired by Typora; FerrumNote is an independent project and is not affiliated with Typora.
 
 ## Highlights
 
-- Typora-like live Markdown editing experience
-- CodeMirror-first editing pipeline with one Markdown source of truth
-- Single `Source` toggle:
-  - off: `Writer` mode (WYSIWYG-style)
-  - on: raw Markdown source mode (line numbers + wrapping)
-- Strict Typora-style marker behavior in Writer mode:
-  - markdown markers stay hidden while cursor is outside syntax ranges
-  - markers become visible and directly editable when cursor enters syntax ranges
+- Self-hosted Markdown engine:
+  - Rust core (`fn-engine`)
+  - WebAssembly bridge (`fn-engine-wasm`)
+  - custom Writer surface in the renderer
+- One Markdown source of truth backed by the engine snapshot model
+- `Writer` mode for engine-controlled editing and `Source` mode for CodeMirror-based raw editing
 - Workspace explorer (directory-first, Markdown-focused)
 - Desktop file lifecycle: open, save, save as, autosave, version conflict guard
 - HTML and PDF export
@@ -43,6 +41,8 @@ Inspired by Typora; FerrumNote is an independent project and is not affiliated w
 - `crates/fn-fs`: file IO, atomic write, watcher, workspace directory listing
 - `crates/fn-export`: HTML/PDF export pipeline
 - `crates/fn-config`: app config loading and workspace root persistence
+- `crates/fn-engine`: self-hosted Markdown engine core (doc model, parser, transactions, snapshot)
+- `crates/fn-engine-wasm`: WebAssembly bridge for the renderer
 - `docs/`: architecture, scope, release, and troubleshooting docs
 
 ## Quick Start
@@ -80,7 +80,17 @@ pnpm dev
 ```
 
 In browser mode, desktop-only features are disabled (`open/save/export/watch/explorer file IO`).
-Source toggle, Writer marker editing behavior, and search/replace remain available.
+
+## Engine Development
+
+When you change the Rust engine or WASM bridge, regenerate the frontend package:
+
+```bash
+cd apps/desktop
+pnpm engine:build
+```
+
+This rebuilds `crates/fn-engine-wasm` and refreshes `src/engine/pkg/*`.
 
 ## Validation Commands
 

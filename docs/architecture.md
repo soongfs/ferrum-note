@@ -1,35 +1,41 @@
 # FerrumNote Architecture
 
 ## Overview
-FerrumNote is a desktop Markdown editor with Typora-like editing UX.
+FerrumNote is a desktop Markdown editor with a self-hosted editing engine.
 
-- Frontend: React + TipTap (editing interaction, selection, IME behavior, toolbar, shortcuts)
+- Frontend shell: React
+- Writer runtime: custom `contenteditable` surface backed by a Rust/WASM engine
+- Source runtime: CodeMirror 6
 - UI layout: workspace explorer (left), editor (right), status bar (bottom)
 - Desktop runtime: Tauri 2
 - Rust domain crates:
   - `fn-core`: shared domain types and payload contracts
   - `fn-fs`: document IO, version guards, file watcher, workspace listing
   - `fn-export`: HTML/PDF export
-  - `fn-config`: app configuration from `~/.ferrumnote/config.toml` (including `workspace_root`)
+  - `fn-config`: app configuration from `~/.ferrumnote/config.toml`
+  - `fn-engine`: Markdown parser, transactions, snapshot builder, plugin registry
+  - `fn-engine-wasm`: renderer-facing WebAssembly wrapper around `fn-engine`
 
 ## Source of Truth
-Markdown text on disk is the single source of truth.
+Markdown text is the single durable source of truth.
 
-Runtime editor state is a projection for UX and command handling and is synchronized back to Markdown text using explicit version checks.
+At runtime, FerrumNote keeps an engine-owned document model and selection state.
+Writer mode renders an engine snapshot. Source mode edits raw Markdown and reparses the engine state.
 
 ## Data Flow
-1. Frontend sets workspace root with `set_workspace_root(path)`.
-2. Frontend queries explorer entries via `list_workspace_entries(relative_path?)`.
-3. Frontend opens Markdown files with `open_file(path)`.
-4. Rust reads file and returns `{ content, version, last_modified }`.
-5. Frontend applies edits and generates sync payload.
-6. Frontend autosaves with `save_file(path, content, expected_version)`.
-7. Rust writes atomically and bumps version.
-8. File watcher reports external changes for conflict handling.
+1. Frontend loads config and workspace root.
+2. Frontend opens Markdown files through Tauri commands.
+3. Rust returns `{ content, version, last_modified }`.
+4. Frontend hydrates `fn-engine-wasm` with the Markdown string.
+5. Writer mode applies engine transactions and emits fresh snapshots.
+6. Source mode updates the raw Markdown string and reparses the engine.
+7. Autosave persists Markdown to disk through `save_file(path, content, expected_version)`.
+8. Rust writes atomically and bumps version.
 
 ## Failure Strategy
 - Permission and path errors are surfaced with actionable messages.
 - Writes are atomic via temp file + rename.
 - Version mismatch returns `conflict = true`.
 - Workspace explorer rejects path traversal outside configured root.
-- PDF export failure falls back to HTML export path.
+- Browser mode disables desktop-only capabilities explicitly.
+- Engine development keeps generated WASM artifacts in `apps/desktop/src/engine/pkg` to avoid breaking the desktop build path.

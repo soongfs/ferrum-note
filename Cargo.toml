@@ -5,7 +5,9 @@ members = [
   "crates/fn-core",
   "crates/fn-fs",
   "crates/fn-export",
-  "crates/fn-config"
+  "crates/fn-config",
+  "crates/fn-engine",
+  "crates/fn-engine-wasm"
 ]
 
 [workspace.package]
@@ -20,3 +22,4 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
 tracing = "0.1"
+wasm-bindgen = "0.2.113"

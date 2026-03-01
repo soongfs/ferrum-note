@@ -12,6 +12,7 @@
     "test:e2e": "playwright test",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "brand:prepare": "node scripts/prepare-brand-assets.mjs",
+    "engine:build": "node scripts/build-engine-wasm.mjs",
     "tauri": "tauri"
   },
   "dependencies": {

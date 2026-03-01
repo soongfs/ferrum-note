@@ -13,6 +13,12 @@ export type DomSelectionOffsets = EngineSelection & {
   end_utf8: number;
 };
 
+export type WriterBlockTextSlice = {
+  startUtf8: number;
+  endUtf8: number;
+  text: string;
+};
+
 const encoder = new TextEncoder();
 
 export function utf8BytesForCodeUnitOffset(text: string, codeUnitOffset: number): number {
@@ -73,19 +79,33 @@ export function readDomSelection(root: HTMLElement): DomSelectionOffsets | null 
 }
 
 export function serializeWriterMarkdown(root: HTMLElement, previousMarkdown: string): string {
-  const blocks = Array.from(root.querySelectorAll<HTMLElement>("[data-block='true']"));
+  const blocks = Array.from(root.querySelectorAll<HTMLElement>("[data-block='true']")).map((block) => {
+    const startUtf8 = Number(block.dataset.start ?? "0");
+    const endUtf8 = Number(block.dataset.end ?? String(startUtf8));
+    const leaf = block.querySelector<HTMLElement>("[data-leaf='true']");
+    const text = leaf && leaf.dataset.empty === "true" ? "" : leaf?.textContent ?? "";
+
+    return {
+      startUtf8,
+      endUtf8,
+      text
+    };
+  });
+
+  return serializeWriterMarkdownFromBlocks(previousMarkdown, blocks);
+}
+
+export function serializeWriterMarkdownFromBlocks(
+  previousMarkdown: string,
+  blocks: WriterBlockTextSlice[]
+): string {
   let cursorUtf8 = 0;
   let nextMarkdown = "";
 
   for (const block of blocks) {
-    const startUtf8 = Number(block.dataset.start ?? "0");
-    const endUtf8 = Number(block.dataset.end ?? String(startUtf8));
-    nextMarkdown += sliceByUtf8Offsets(previousMarkdown, cursorUtf8, startUtf8);
-
-    const leaf = block.querySelector<HTMLElement>("[data-leaf='true']");
-    const blockText = leaf && leaf.dataset.empty === "true" ? "" : leaf?.textContent ?? "";
-    nextMarkdown += blockText;
-    cursorUtf8 = endUtf8;
+    nextMarkdown += sliceByUtf8Offsets(previousMarkdown, cursorUtf8, block.startUtf8);
+    nextMarkdown += block.text;
+    cursorUtf8 = block.endUtf8;
   }
 
   nextMarkdown += sliceByUtf8Offsets(previousMarkdown, cursorUtf8);

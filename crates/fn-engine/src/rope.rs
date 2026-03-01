@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 use crate::{selection::TextRange, EngineError, Result};
 
@@ -33,8 +34,10 @@ impl RopeText {
         self.0.replace_range(start..end, insert);
         Ok(())
     }
+}
 
-    pub fn to_string(&self) -> String {
-        self.0.clone()
+impl fmt::Display for RopeText {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.0)
     }
 }

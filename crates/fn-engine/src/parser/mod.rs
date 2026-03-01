@@ -258,8 +258,8 @@ fn parse_inlines(text: &str, base_offset: usize, id_gen: &mut NodeIdGenerator) -
     while cursor < text.len() {
         let rest = &text[cursor..];
 
-        if rest.starts_with("**") {
-            if let Some(close_rel) = rest[2..].find("**") {
+        if let Some(stripped) = rest.strip_prefix("**") {
+            if let Some(close_rel) = stripped.find("**") {
                 push_text_segment(&mut nodes, text, literal_start, cursor, base_offset, id_gen);
                 let inner_start = cursor + 2;
                 let inner_end = inner_start + close_rel;
@@ -279,8 +279,8 @@ fn parse_inlines(text: &str, base_offset: usize, id_gen: &mut NodeIdGenerator) -
             }
         }
 
-        if rest.starts_with('*') {
-            if let Some(close_rel) = rest[1..].find('*') {
+        if let Some(stripped) = rest.strip_prefix('*') {
+            if let Some(close_rel) = stripped.find('*') {
                 push_text_segment(&mut nodes, text, literal_start, cursor, base_offset, id_gen);
                 let inner_start = cursor + 1;
                 let inner_end = inner_start + close_rel;
@@ -300,8 +300,8 @@ fn parse_inlines(text: &str, base_offset: usize, id_gen: &mut NodeIdGenerator) -
             }
         }
 
-        if rest.starts_with('`') {
-            if let Some(close_rel) = rest[1..].find('`') {
+        if let Some(stripped) = rest.strip_prefix('`') {
+            if let Some(close_rel) = stripped.find('`') {
                 push_text_segment(&mut nodes, text, literal_start, cursor, base_offset, id_gen);
                 let inner_start = cursor + 1;
                 let inner_end = inner_start + close_rel;

@@ -14,6 +14,10 @@ impl TextRange {
     pub fn len(self) -> u32 {
         self.end_utf8.saturating_sub(self.start_utf8)
     }
+
+    pub fn is_empty(self) -> bool {
+        self.start_utf8 == self.end_utf8
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]

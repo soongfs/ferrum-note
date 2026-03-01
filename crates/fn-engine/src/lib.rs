@@ -240,7 +240,7 @@ impl Engine {
         let markdown = self.doc.text.as_str().to_string();
         let marker_len = marker.len() as u32;
 
-        if selection.len() == 0 {
+        if selection.is_empty() {
             let insert = format!("{marker}{marker}");
             self.doc.text.replace_range(selection, &insert)?;
             let cursor = selection.start_utf8 + marker_len;
@@ -358,7 +358,7 @@ impl Engine {
         let line = &markdown[line_start..line_end];
         let trimmed = line.trim_end_matches('\r');
 
-        if range.len() == 0
+        if range.is_empty()
             && cursor == line_end
             && is_fence_trigger_line(trimmed)
             && !has_closing_fence_below(markdown, line_end)
@@ -370,7 +370,7 @@ impl Engine {
             return Ok((TextRange::new(line_start as u32, range.end_utf8), insert, selection));
         }
 
-        if range.len() == 0 && cursor == line_end {
+        if range.is_empty() && cursor == line_end {
             if let Some(prefix) = list_continuation_prefix(trimmed) {
                 let insert = format!("\n{prefix}");
                 let selection = Selection::collapsed(range.start_utf8 + insert.len() as u32);

@@ -1,20 +1,23 @@
-name: Auto Prerelease
+name: Manual Prerelease
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to release from
+        required: true
+        default: master
+      tag_name:
+        description: Optional prerelease tag (for example v0.1.0-alpha.10)
+        required: false
+        default: ""
 
 concurrency:
-  group: auto-prerelease-master
+  group: manual-prerelease
   cancel-in-progress: false
 
 jobs:
   prepare-tag:
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'master'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -26,7 +29,7 @@ jobs:
       - name: Checkout target commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ inputs.ref }}
           fetch-depth: 0
 
       - name: Setup Node
@@ -40,36 +43,49 @@ jobs:
         run: |
           set -euo pipefail
 
-          target_sha="${{ github.event.workflow_run.head_sha }}"
+          target_sha="$(git rev-parse HEAD)"
+          requested_tag="${{ inputs.tag_name }}"
           existing_tag="$(git tag --points-at "$target_sha" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$' | head -n1 || true)"
 
-          if [[ -n "$existing_tag" ]]; then
+          if [[ -n "$requested_tag" ]]; then
+            if [[ ! "$requested_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$ ]]; then
+              echo "Invalid prerelease tag format: $requested_tag" >&2
+              exit 1
+            fi
+
+            if git rev-parse "$requested_tag" >/dev/null 2>&1; then
+              echo "Tag already exists: $requested_tag" >&2
+              exit 1
+            fi
+
+            new_tag="$requested_tag"
+          elif [[ -n "$existing_tag" ]]; then
             echo "tag_name=$existing_tag" >> "$GITHUB_OUTPUT"
             echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
             echo "created=false" >> "$GITHUB_OUTPUT"
             exit 0
-          fi
+          else
+            base_version="$(node -p "require('./apps/desktop/package.json').version.split('-')[0]")"
+            escaped_base="${base_version//./\\.}"
+            max_alpha=-1
 
-          base_version="$(node -p "require('./apps/desktop/package.json').version.split('-')[0]")"
-          escaped_base="${base_version//./\\.}"
-          max_alpha=-1
-
-          while IFS= read -r tag; do
-            [[ -z "$tag" ]] && continue
-            if [[ "$tag" =~ ^v${escaped_base}-alpha\.([0-9]+)$ ]]; then
-              alpha_number="${BASH_REMATCH[1]}"
-              if (( alpha_number > max_alpha )); then
-                max_alpha="$alpha_number"
+            while IFS= read -r tag; do
+              [[ -z "$tag" ]] && continue
+              if [[ "$tag" =~ ^v${escaped_base}-alpha\.([0-9]+)$ ]]; then
+                alpha_number="${BASH_REMATCH[1]}"
+                if (( alpha_number > max_alpha )); then
+                  max_alpha="$alpha_number"
+                fi
               fi
-            fi
-          done < <(git tag -l "v${base_version}-alpha.*")
+            done < <(git tag -l "v${base_version}-alpha.*")
 
-          next_alpha=$((max_alpha + 1))
-          new_tag="v${base_version}-alpha.${next_alpha}"
+            next_alpha=$((max_alpha + 1))
+            new_tag="v${base_version}-alpha.${next_alpha}"
+          fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$new_tag" "$target_sha" -m "chore(release): auto cut $new_tag"
+          git tag -a "$new_tag" "$target_sha" -m "chore(release): manual cut $new_tag"
           git push origin "$new_tag"
 
           echo "tag_name=$new_tag" >> "$GITHUB_OUTPUT"

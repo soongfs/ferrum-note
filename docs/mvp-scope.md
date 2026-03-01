@@ -3,12 +3,12 @@
 ## In Scope
 - Open/save/save-as Markdown files
 - Open Folder workspace selection + workspace explorer
-- Typora-style editing with CodeMirror-first pipeline
+- Self-hosted Writer pipeline:
+  - Rust engine core (`fn-engine`)
+  - WASM bridge (`fn-engine-wasm`)
+  - custom Writer surface in the renderer
+- Source mode based on CodeMirror 6
 - Single Source toggle + `Ctrl/Cmd+Shift+M` mode switch
-- Source mode based on CodeMirror 6 (line numbers + wrapping)
-- Writer mode strict marker behavior:
-  - markers hidden outside active syntax ranges
-  - inline + core block markers visible and editable when cursor enters range
 - Undo/redo and keyboard shortcuts
 - Find/replace in current document
 - Autosave (default 1500ms)
@@ -23,6 +23,7 @@
 - Real-time collaboration
 - Plugin marketplace
 - Multi-document tabs
+- Task lists, tables, math, and other non-core Markdown extensions in the self-hosted engine M0
 
 ## Acceptance Baseline
 - Can open and edit large Markdown files (1MB, 5MB, 20MB)
@@ -33,4 +34,4 @@
 - Browser mode (`pnpm dev`) does not call desktop-only commands and clearly shows degraded capabilities
 - Writer/Source switch keeps Markdown content consistent with no data loss
 - `\`test\` + Enter` keeps inline code semantics and does not transform into fenced blocks
-- Fenced code blocks preserve language (`python`, `c`, etc.) and show visible syntax highlighting
+- Fenced code blocks preserve language (`python`, `c`, etc.) through engine transactions

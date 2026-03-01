@@ -16,6 +16,16 @@
 
 ## Local Development
 
+### Engine WASM Regeneration
+
+If you change `crates/fn-engine` or `crates/fn-engine-wasm`, refresh the frontend package first:
+
+```bash
+cd apps/desktop
+pnpm engine:build
+```
+
+
 ### Desktop Mode (Tauri)
 
 ```bash
@@ -77,7 +87,7 @@ pnpm brand:prepare -- /absolute/path/to/logo-source.png
 - Current pre-release target: `v0.1.0-alpha.1`
 
 ## Tag Update Policy
-- `vX.Y.Z-alpha.N` tags are auto-generated after successful CI on `master` push.
+- `vX.Y.Z-alpha.N` tags are created manually when a milestone is worth packaging.
 - Stable tags (`vX.Y.Z`) are created manually after explicit release approval.
 - Never move or force-update an existing tag.
 - If a release is bad, fix on `master` and cut a new tag.
@@ -85,8 +95,20 @@ pnpm brand:prepare -- /absolute/path/to/logo-source.png
 ## Release Workflow
 1. Merge feature branch into `master` via PR (squash merge).
 2. CI runs on `master` push.
-3. `Auto Prerelease` cuts next `vX.Y.Z-alpha.N` tag and publishes prerelease assets automatically.
-4. For stable release, create and push a stable tag manually; `Release Build` publishes stable assets.
+3. When the branch reaches a useful test milestone, run `Manual Prerelease` from GitHub Actions.
+4. Use `ref=master` and leave `tag_name` empty to auto-increment the next alpha tag, or set `tag_name` explicitly if you need a specific prerelease tag.
+5. For stable release, create and push a stable tag manually; `Release Build` publishes stable assets.
+
+## Manual Prerelease
+From GitHub:
+
+1. Open `Actions`.
+2. Select `Manual Prerelease`.
+3. Click `Run workflow`.
+4. Keep `ref` as `master` unless you intentionally want to package another ref.
+5. Leave `tag_name` empty to cut the next `vX.Y.Z-alpha.N`, or provide a full prerelease tag.
+
+The workflow will create the tag, build bundles for Linux/macOS/Windows, and publish a prerelease.
 
 ## Stable Tag And Publish
 

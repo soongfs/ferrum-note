@@ -128,9 +128,9 @@ Important fields:
 - Work on feature branches: `feature/*`, `fix/*`, `release/*`
 - Merge via PR with `Squash and merge`
 - Commits follow Conventional Commits + `Why/What/Test`
-
-Pre-release tags (`vX.Y.Z-alpha.N`) are auto-cut after successful CI on `master` push.
-Stable tags (`vX.Y.Z`) are pushed manually.
+- CI runs automatically on branch pushes and PRs.
+- Pre-release tags (`vX.Y.Z-alpha.N`) are cut manually when a milestone is worth packaging.
+- Stable tags (`vX.Y.Z`) are pushed manually.
 
 ## License
 

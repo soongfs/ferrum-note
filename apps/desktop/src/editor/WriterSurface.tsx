@@ -1,12 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { EngineCommandString, EngineSnapshot, RenderBlockVM } from "../engine/types";
 import { readDomSelection, serializeWriterMarkdown } from "./domMapping";
-import {
-  nextUtf8Boundary,
-  previousUtf8Boundary,
-  resolveWriterIntent,
-  resolveWriterShortcut
-} from "./inputPipeline";
+import { resolveDeleteRange, resolveWriterIntent, resolveWriterShortcut } from "./inputPipeline";
 import { restoreDomSelection } from "./selectionMapping";
 
 const encoder = new TextEncoder();
@@ -38,16 +33,84 @@ export function WriterSurface({
 }: WriterSurfaceProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const isComposing = useRef(false);
+  const selectionSyncSuppressions = useRef(0);
+  const lastObservedSelection = useRef<EngineSnapshot["selection"] | null>(null);
+  const pendingSelectionRestore = useRef(false);
+  const pendingSelectionTarget = useRef<EngineSnapshot["selection"] | null>(null);
+
+  const suppressSelectionSync = () => {
+    selectionSyncSuppressions.current += 1;
+    window.setTimeout(() => {
+      selectionSyncSuppressions.current = Math.max(0, selectionSyncSuppressions.current - 1);
+    }, 0);
+  };
+
+  const rememberSelection = (selection: { anchor_utf8: number; head_utf8: number }) => {
+    lastObservedSelection.current = {
+      anchor_utf8: selection.anchor_utf8,
+      head_utf8: selection.head_utf8
+    };
+  };
+
+  const requestSelectionRestore = (selection?: { anchor_utf8: number; head_utf8: number } | null) => {
+    pendingSelectionRestore.current = true;
+    if (selection) {
+      pendingSelectionTarget.current = {
+        anchor_utf8: selection.anchor_utf8,
+        head_utf8: selection.head_utf8
+      };
+    }
+  };
+
+  const clearSatisfiedSelectionTarget = (selection: EngineSnapshot["selection"]) => {
+    if (
+      pendingSelectionTarget.current &&
+      !hasSelectionChanged(pendingSelectionTarget.current, selection)
+    ) {
+      pendingSelectionTarget.current = null;
+    }
+  };
 
   useLayoutEffect(() => {
     if (!rootRef.current || !snapshot) {
       return;
     }
 
-    const selection = window.getSelection();
-    if (document.activeElement === rootRef.current || rootRef.current.contains(selection?.anchorNode ?? null)) {
-      restoreDomSelection(rootRef.current, snapshot.selection);
+    if (isComposing.current) {
+      return;
     }
+
+    const selection = window.getSelection();
+    const offsets = readDomSelection(rootRef.current);
+    if (offsets) {
+      rememberSelection(offsets);
+    }
+
+    const targetSelection = pendingSelectionTarget.current ?? snapshot.selection;
+    const rootOwnsSelection =
+      document.activeElement === rootRef.current ||
+      rootRef.current.contains(selection?.anchorNode ?? null);
+
+    if (!pendingSelectionRestore.current && !offsets) {
+      clearSatisfiedSelectionTarget(snapshot.selection);
+      return;
+    }
+
+    if (!rootOwnsSelection && !pendingSelectionRestore.current) {
+      clearSatisfiedSelectionTarget(snapshot.selection);
+      return;
+    }
+
+    if (offsets && !hasSelectionChanged(offsets, targetSelection)) {
+      pendingSelectionRestore.current = false;
+      clearSatisfiedSelectionTarget(snapshot.selection);
+      return;
+    }
+
+    suppressSelectionSync();
+    restoreDomSelection(rootRef.current, targetSelection);
+    pendingSelectionRestore.current = false;
+    clearSatisfiedSelectionTarget(snapshot.selection);
   }, [snapshot]);
 
   useEffect(() => {
@@ -56,7 +119,15 @@ export function WriterSurface({
         return;
       }
 
+      if (isComposing.current || selectionSyncSuppressions.current > 0) {
+        return;
+      }
+
       const offsets = readDomSelection(rootRef.current);
+      if (offsets) {
+        rememberSelection(offsets);
+      }
+
       if (!offsets || !hasSelectionChanged(offsets, snapshot.selection)) {
         return;
       }
@@ -76,8 +147,38 @@ export function WriterSurface({
       return;
     }
 
+    const syncDomStateToEngine = () => {
+      const nextMarkdown = serializeWriterMarkdown(root, snapshot.markdown);
+      const offsets = readDomSelection(root) ?? lastObservedSelection.current;
+      const markdownChanged = nextMarkdown !== snapshot.markdown;
+      const selectionChanged = offsets && hasSelectionChanged(offsets, snapshot.selection);
+
+      if (!markdownChanged && !selectionChanged) {
+        return;
+      }
+
+      if (offsets) {
+        rememberSelection(offsets);
+      }
+
+      requestSelectionRestore(offsets);
+      suppressSelectionSync();
+
+      if (markdownChanged) {
+        onSetMarkdown(nextMarkdown);
+      }
+
+      if (selectionChanged && offsets) {
+        onSetSelection(offsets.anchor_utf8, offsets.head_utf8);
+      }
+    };
+
     const onBeforeInput = (event: InputEvent) => {
-      if (isComposing.current) {
+      if (
+        isComposing.current ||
+        event.isComposing ||
+        event.inputType === "insertCompositionText"
+      ) {
         return;
       }
 
@@ -91,103 +192,96 @@ export function WriterSurface({
         return;
       }
 
+      rememberSelection(offsets);
       switch (intent) {
         case "insert_text": {
           event.preventDefault();
+          requestSelectionRestore();
           onReplaceText(offsets.start_utf8, offsets.end_utf8, event.data ?? "");
           return;
         }
         case "delete_backward": {
           event.preventDefault();
-          const start =
-            offsets.start_utf8 === offsets.end_utf8
-              ? previousUtf8Boundary(snapshot.markdown, offsets.start_utf8)
-              : offsets.start_utf8;
-          onReplaceText(start, offsets.end_utf8, "");
+          const range = resolveDeleteRange(snapshot.markdown, offsets, "backward");
+          if (!range) {
+            return;
+          }
+          requestSelectionRestore();
+          onReplaceText(range.startUtf8, range.endUtf8, "");
           return;
         }
         case "delete_forward": {
           event.preventDefault();
-          const end =
-            offsets.start_utf8 === offsets.end_utf8
-              ? nextUtf8Boundary(snapshot.markdown, offsets.end_utf8)
-              : offsets.end_utf8;
-          onReplaceText(offsets.start_utf8, end, "");
+          const range = resolveDeleteRange(snapshot.markdown, offsets, "forward");
+          if (!range) {
+            return;
+          }
+          requestSelectionRestore();
+          onReplaceText(range.startUtf8, range.endUtf8, "");
           return;
         }
         case "history_undo":
           event.preventDefault();
+          requestSelectionRestore();
           onUndo();
           return;
         case "history_redo":
           event.preventDefault();
+          requestSelectionRestore();
           onRedo();
           return;
         case "insert_paragraph": {
           event.preventDefault();
+          requestSelectionRestore();
           onReplaceText(offsets.start_utf8, offsets.end_utf8, "\n");
           return;
         }
         case "insert_from_paste":
+          event.preventDefault();
+          return;
         default:
           return;
       }
     };
 
-    const onInput = () => {
-      if (!isComposing.current) {
-        return;
-      }
-
-      const nextMarkdown = serializeWriterMarkdown(root, snapshot.markdown);
-      if (nextMarkdown !== snapshot.markdown) {
-        onSetMarkdown(nextMarkdown);
-      }
-
-      const offsets = readDomSelection(root);
-      if (offsets && hasSelectionChanged(offsets, snapshot.selection)) {
-        onSetSelection(offsets.anchor_utf8, offsets.head_utf8);
-      }
-    };
-
     const onPaste = (event: ClipboardEvent) => {
-      const text = event.clipboardData?.getData("text/plain");
       const offsets = readDomSelection(root);
-      if (!text || !offsets) {
+      if (!offsets) {
         return;
       }
 
+      const text = event.clipboardData?.getData("text/plain") ?? "";
       event.preventDefault();
+      if (text.length === 0) {
+        return;
+      }
+
+      rememberSelection(offsets);
+      requestSelectionRestore();
       onReplaceText(offsets.start_utf8, offsets.end_utf8, text);
     };
 
     const onCompositionStart = () => {
+      const offsets = readDomSelection(root);
+      if (offsets) {
+        rememberSelection(offsets);
+      }
       isComposing.current = true;
     };
 
     const onCompositionEnd = () => {
-      const nextMarkdown = serializeWriterMarkdown(root, snapshot.markdown);
-      const offsets = readDomSelection(root);
       isComposing.current = false;
-
-      if (nextMarkdown !== snapshot.markdown) {
-        onSetMarkdown(nextMarkdown);
-      }
-
-      if (offsets && hasSelectionChanged(offsets, snapshot.selection)) {
-        onSetSelection(offsets.anchor_utf8, offsets.head_utf8);
-      }
+      suppressSelectionSync();
+      queueMicrotask(syncDomStateToEngine);
     };
 
     root.addEventListener("beforeinput", onBeforeInput);
-    root.addEventListener("input", onInput);
     root.addEventListener("paste", onPaste);
     root.addEventListener("compositionstart", onCompositionStart);
     root.addEventListener("compositionend", onCompositionEnd);
 
     return () => {
       root.removeEventListener("beforeinput", onBeforeInput);
-      root.removeEventListener("input", onInput);
       root.removeEventListener("paste", onPaste);
       root.removeEventListener("compositionstart", onCompositionStart);
       root.removeEventListener("compositionend", onCompositionEnd);
@@ -220,13 +314,16 @@ export function WriterSurface({
 
           event.preventDefault();
           if (command === "undo") {
+            requestSelectionRestore();
             onUndo();
             return;
           }
           if (command === "redo") {
+            requestSelectionRestore();
             onRedo();
             return;
           }
+          requestSelectionRestore();
           onApplyCommand(command);
         }}
       >

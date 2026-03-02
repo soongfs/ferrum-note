@@ -31,6 +31,34 @@ async function placeCaretAtEndOfWriter(page: Page) {
   await page.waitForTimeout(50);
 }
 
+async function pastePlainTextIntoWriter(page: Page, text: string) {
+  await page.getByTestId("writer-surface").evaluate((root, payload) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", payload);
+
+    const pasteEvent = new ClipboardEvent("paste", {
+      clipboardData: data,
+      bubbles: true,
+      cancelable: true
+    });
+
+    root.dispatchEvent(pasteEvent);
+  }, text);
+}
+
+async function pasteEmptyPlainTextIntoWriter(page: Page) {
+  await page.getByTestId("writer-surface").evaluate((root) => {
+    const data = new DataTransfer();
+    const pasteEvent = new ClipboardEvent("paste", {
+      clipboardData: data,
+      bubbles: true,
+      cancelable: true
+    });
+
+    root.dispatchEvent(pasteEvent);
+  });
+}
+
 test.describe("FerrumNote web mode", () => {
   test("shows desktop-only banner and disables desktop actions", async ({ page }) => {
     await page.goto("/");
@@ -122,5 +150,63 @@ test.describe("FerrumNote web mode", () => {
     await page.getByTestId("mode-source-toggle-button").click();
     await expect(page.locator(".writer-block--fenced_code")).toBeVisible();
     await expect(page.getByText("python", { exact: true })).toBeVisible();
+  });
+
+  test("keeps multibyte input and backward delete stable", async ({ page }) => {
+    await page.goto("/");
+
+    await setSourceMarkdown(page, "alpha ");
+    await placeCaretAtEndOfWriter(page);
+    await page.keyboard.insertText("中文🙂");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Backspace");
+
+    await expect(page.getByTestId("writer-surface")).toContainText("alpha 中");
+
+    await page.getByTestId("mode-source-toggle-button").click();
+    const sourceText = await page.locator(".cm-content").innerText();
+    expect(sourceText).toContain("alpha 中");
+    expect(sourceText).not.toContain("🙂");
+    expect(sourceText).not.toContain("文");
+  });
+
+  test("pastes multiline plain text without diverging from source mode", async ({ page }) => {
+    await page.goto("/");
+
+    await setSourceMarkdown(page, "alpha ");
+    await placeCaretAtEndOfWriter(page);
+    await pastePlainTextIntoWriter(page, "第一行\n第二行");
+
+    await page.getByTestId("mode-source-toggle-button").click();
+    const sourceText = await page.locator(".cm-content").innerText();
+    expect(sourceText).toContain("alpha 第一行\n第二行");
+  });
+
+  test("does not delete the current selection when paste has no plain-text payload", async ({
+    page
+  }) => {
+    await page.goto("/");
+
+    await setSourceMarkdown(page, "alpha beta");
+    await page.getByTestId("writer-surface").click();
+    await page.keyboard.press("Control+A");
+    await pasteEmptyPlainTextIntoWriter(page);
+
+    await page.getByTestId("mode-source-toggle-button").click();
+    const sourceText = await page.locator(".cm-content").innerText();
+    expect(sourceText).toContain("alpha beta");
+  });
+
+  test("keeps the caret in the new line after pressing Enter in multibyte text", async ({ page }) => {
+    await page.goto("/");
+
+    await setSourceMarkdown(page, "第一行");
+    await placeCaretAtEndOfWriter(page);
+    await page.keyboard.press("Enter");
+    await page.keyboard.insertText("第二行");
+
+    await page.getByTestId("mode-source-toggle-button").click();
+    const sourceText = await page.locator(".cm-content").innerText();
+    expect(sourceText).toContain("第一行\n第二行");
   });
 });
